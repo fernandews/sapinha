@@ -7,7 +7,6 @@ const menuCommand: Command = {
 
     async execute(msg, client, args, commandsMap) {
         let menuTexto = '🐸🌈 *MENU DA SAPINHA* \n\n';
-        menuTexto += 'Confira tudo o que eu sei fazer por aqui, amigue! ✨\n\n';
 
         // Guarda os comandos já processados para não repetir (caso um comando tenha vários triggers)
         const comandosUnicos = new Set<Command>();

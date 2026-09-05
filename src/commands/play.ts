@@ -1,61 +1,55 @@
+import { Client, Message, MessageMedia } from 'whatsapp-web.js';
+import play from 'play-dl';
 import { Command } from '../@types/command';
-import { MessageMedia } from 'whatsapp-web.js';
-import yts from 'yt-search';
-import ytdl from '@distube/ytdl-core';
 
-const playCommand: Command = {
-    name: 'DJ Sapinha',
-    description: 'Toca uma música do YouTube no chat',
-    triggers: ['!play', '!musica', '!tocar'],
+export const playCommand: Command = {
+    name: 'Tocar Música',
+    description: 'Busca e envia o áudio de uma música do YouTube 🎵✨',
+    triggers: ['!tocar', '!play', '!musica'],
+    adminOnly: false,
 
-    async execute(msg, client, args) {
+    async execute(msg: Message, _client: Client, args: string[]) {
         const busca = args.join(' ');
 
         if (!busca) {
-            await msg.reply('🐸🎶 Qual música você quer ouvir? Digite: *!play nome da musica*');
+            await msg.reply('🐸 streamer da shopee! Me diz o nome da música ou manda o link pra sapinha tocar! ✨');
             return;
         }
 
         try {
-            // Reage à mensagem do usuário para indicar que recebeu o comando 🫡
-            await msg.react('🫡');
+            await msg.react('🎵');
 
-            // 1. Pesquisa o vídeo no YouTube
-            const searchResult = await yts(busca);
-            const video = searchResult.videos[0];
+            // 1. Busca o vídeo no YouTube
+            const ytResults = await play.search(busca, { limit: 1 });
 
-            if (!video) {
-                await msg.reply('🐸💔 Poxa, não encontrei essa música no YouTube! Quer tentar com outro nome?');
+            if (!ytResults || ytResults.length === 0) {
+                await msg.reply('🐸💔 Não achei nenhuma música com esse nome no YouTube!');
                 return;
             }
 
-            // 2. Faz o download do áudio em buffer
-            const stream = ytdl(video.url, {
-                filter: 'audioonly',
-                quality: 'highestaudio',
-            });
+            const video = ytResults[0];
 
+            // 2. Extrai o stream de áudio do vídeo encontrado
+            const streamInfo = await play.stream(video.url, { quality: 2 }); // Qualidade otimizada de áudio
+
+            // 3. Converte o stream em Buffer para a transmissão no WhatsApp
             const chunks: Buffer[] = [];
-            for await (const chunk of stream) {
+            for await (const chunk of streamInfo.stream) {
                 chunks.push(chunk);
             }
             const audioBuffer = Buffer.concat(chunks);
 
-            // 3. Converte para MessageMedia
+            // 4. Monta a mídia e envia como mensagem de voz
             const media = new MessageMedia(
                 'audio/mp3',
                 audioBuffer.toString('base64'),
                 `${video.title}.mp3`
             );
 
-            // 4. Envia apenas o áudio no chat como mensagem de áudio
             await msg.reply(media, undefined, { sendAudioAsVoice: true });
-
         } catch (error) {
-            console.error('Erro ao tocar música:', error);
-            await msg.reply('❌ Ocorreu um erro ao baixar a música. Tente novamente mais tarde! 🐸💔');
+            console.error('Erro ao processar comando de música:', error);
+            await msg.reply('🐸💔 A sapinha deu uma moscada ao tentar baixar o áudio! Tenta de novo em instantes? ✨');
         }
     }
 };
-
-export default playCommand;
