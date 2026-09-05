@@ -27,7 +27,7 @@ _Quem sair do grupo não poderá voltar por um bom tempo! 🤭_
 export const regrasCommandTriggers = ['!regras'];
 
 export const regrasCommand = {
-    name: 'regras',
+    name: 'Regras',
     description: 'Exibe as regras do grupo',
     triggers: regrasCommandTriggers,
 }

@@ -1,10 +1,8 @@
 import { Command } from '../@types/command';
+import { removerCommand, removerFalha, removerNaoMarcou, removerSucesso } from '../content/removerData';
 
 const banCommand: Command = {
-    name: 'Remover Membro',
-    description: 'Remove um usuário do grupo (exclusivo para ADMs)',
-    triggers: ['!ban', '!remover'],
-    adminOnly: true, // <--- Protegido! Apenas ADMs podem usar 🐸🛡️✨
+    ...removerCommand,
 
     async execute(msg, client, args) {
         const chat = await msg.getChat();
@@ -21,7 +19,7 @@ const banCommand: Command = {
         }
 
         if (!usuarioParaBanir) {
-            await msg.reply('🐸💕 Marque a pessoa ou responda à mensagem de quem você quer remover com *!ban*, tá bom? ✨');
+            await msg.reply(removerNaoMarcou);
             return;
         }
 
@@ -29,10 +27,10 @@ const banCommand: Command = {
             // Instância do chat do grupo no whatsapp-web.js
             const groupChat = chat as any;
             await groupChat.removeParticipants([usuarioParaBanir]);
-            await msg.reply('🐸🧹🌈✨');
+            await msg.reply(removerSucesso);
         } catch (error) {
             console.error('Erro ao remover usuário:', error);
-            await msg.reply('❌ Vish! Verifique se eu tenho permissão de ADM no grupo... 🐸💔');
+            await msg.reply(removerFalha);
         }
     }
 };

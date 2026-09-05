@@ -6,7 +6,7 @@ const menuCommand: Command = {
     triggers: ['!menu', '!help', '!comandos'],
 
     async execute(msg, client, args, commandsMap) {
-        let menuTexto = '🐸🌈 *MENU DA SAPINHA* ✨💕\n\n';
+        let menuTexto = '🐸🌈 *MENU DA SAPINHA* \n\n';
         menuTexto += 'Confira tudo o que eu sei fazer por aqui, amigue! ✨\n\n';
 
         // Guarda os comandos já processados para não repetir (caso um comando tenha vários triggers)
@@ -22,7 +22,7 @@ const menuCommand: Command = {
             });
         }
 
-        menuTexto += '💖 *Dica:* É só digitar qualquer um dos comandos acima no chat! 🐸✨';
+        menuTexto += '💖 É só digitar qualquer um dos comandos acima no chat!';
 
         await msg.reply(menuTexto);
     }

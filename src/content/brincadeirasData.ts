@@ -30,7 +30,7 @@ export const opcaoInvalidaTexto = '❌ Opção inválida! Digite *!brincadeiras*
 export const brincadeirasCommandTriggers = ['!brincadeiras', '!brincadeira'];
 
 export const brincadeirasCommand = {
-    name: 'brincadeiras',
-    description: 'Exibe o menu de brincadeiras e envia as regras',
+    name: 'Brincadeiras',
+    description: 'Envia as regras das brincadeiras',
     triggers: brincadeirasCommandTriggers,
 }
