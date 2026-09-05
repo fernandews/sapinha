@@ -10,9 +10,13 @@ const banCommand: Command = {
 
         // 1. Verifica se o comando foi enviado respondendo a uma mensagem
         if (msg.hasQuotedMsg) {
+        try {
             const quotedMsg = await msg.getQuotedMessage();
-            usuarioParaBanir = quotedMsg.author || quotedMsg.from;
-        } 
+            usuarioParaBanir = quotedMsg?.author || quotedMsg?.from;
+        } catch (err) {
+            console.warn('Erro ao ler mensagem citada no ban:', err);
+        }
+}
         // 2. Ou se o usuário foi mencionado na mensagem (ex: !ban @user)
         else if (msg.mentionedIds && msg.mentionedIds.length > 0) {
             usuarioParaBanir = msg.mentionedIds[0];

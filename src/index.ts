@@ -5,9 +5,28 @@ import { pathToFileURL } from 'url'; // <--- 1. Adicione esta importação
 import { Client, LocalAuth, Message } from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 import { Command } from './@types/command';
+import { gerarRespostaSapinha } from './services/groq';
+import { adicionarMensagemAoHistorico, obterHistoricoGrupo } from './services/history';
 
-const client: Client = new Client({
-    authStrategy: new LocalAuth()
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    // Trava a versão do WhatsApp Web para uma versão estável e compatível 🐸🛡️
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1018919647-alpha.html',
+    },
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu'
+        ],
+    }
 });
 
 const commands = new Map<string, Command>();
@@ -42,41 +61,54 @@ const loadCommands = async (): Promise<void> => {
     }
 };
 
+let botLid: string | null = null;
+let botNumber: string | null = null;
+
 // Eventos do WhatsApp Client
 client.on('qr', (qr: string) => {
     console.log('📱 Escaneie o QR Code abaixo com o WhatsApp Business:');
     qrcode.generate(qr, { small: true });
 });
 
-client.on('ready', () => {
-    console.log('🤖 Bot em TypeScript totalmente conectado e pronto para uso!');
+client.on('ready', async () => {
+    console.log('🐸 Sapinha está online e pronta!');
+
+    botNumber = client.info?.wid?.user || null;
+
+    // Busca o LID direto da memória do WhatsApp Web no navegador
+    try {
+        botLid = await (client as any).pupPage.evaluate(() => {
+            // @ts-ignore
+            return window.Store?.Lid?.getMeLid()?._serialized || window.Store?.Conn?.wid?._serialized;
+        });
+        console.log(`📱 Informações do Bot -> Número: ${botNumber} | LID: ${botLid}`);
+    } catch (err) {
+        console.warn('Não foi possível obter o LID automaticamente:', err);
+    }
 });
 
 client.on('message', async (msg: Message) => {
+    const groupId = msg.from;
     // 1. Ignores mensagens vazias
     const body = msg.body?.trim();
     if (!body) return;
 
     // 2. Trava de Grupo: Garante que o chat é um grupo 🐸🛡️✨
-    const chat = await msg.getChat();
-    if (!chat.isGroup) {
-        // Ignora mensagens enviadas no PV (não processa nem responde)
-        return;
-    }
+    const isGroup = msg.from.endsWith('@g.us');
+    if (!isGroup) return;
 
     const args = body.split(/ +/);
     const trigger = args.shift()?.toLowerCase();
 
-    if (!trigger) return;
-
     // 3. Execução dos Comandos
-    if (commands.has(trigger)) {
+    if (trigger && commands.has(trigger)) {
         try {
             const command = commands.get(trigger);
 
             if (command) {
                 // Checagem de Administradora (adminOnly)
                 if (command.adminOnly) {
+                    const chat = await client.getChatById(msg.from);
                     const groupChat = chat as any;
                     const authorId = msg.author || msg.from;
 
@@ -103,6 +135,67 @@ client.on('message', async (msg: Message) => {
     }
 
     // 4. Espaço reservado para a IA (Groq/Llama) responder conversas normais no grupo 🐸🌈✨
+    const rawData = (msg as any)._data;
+    if (!body.startsWith('!')) {
+        adicionarMensagemAoHistorico(groupId, 'user', body);
+    }
+
+    // Lista de menções na mensagem (array de IDs)
+    const mentionedJids: string[] = rawData?.mentionedJidList || msg.mentionedIds || [];
+
+    // Checa se algum dos IDs mencionados bate com o número ou com o LID da Sapinha 🐸🛡️
+    const foiMencionada = mentionedJids.some((jid) => {
+        if (!jid) return false;
+        // 1. Confere contra o LID capturado
+        if (botLid && jid.includes(botLid.replace('@lid', ''))) return true;
+        // 2. Confere contra o número de telefone
+        if (botNumber && jid.includes(botNumber)) return true;
+        // 3. Confere o LID que você viu nos logs (fallback)
+        if (jid.includes('93764269928629')) return true;
+        
+        return false;
+    });
+
+    // Checa se responderam a uma mensagem da Sapinha
+    let foiRespondida = false;
+    if (msg.hasQuotedMsg && rawData?.quotedMsg) {
+        const q = rawData.quotedMsg;
+        const participant = rawData.quotedParticipant || q.author || q.from;
+
+        // A mensagem citada pertence à Sapinha se:
+        foiRespondida = 
+            // a) O indicador nativo de autoria do bot for verdadeiro
+            Boolean(q.fromMe) || 
+            // b) O autor da mensagem citada for o número do bot
+            Boolean(botNumber && participant?.includes(botNumber)) ||
+            // c) O autor da mensagem citada for o LID do bot
+            Boolean(botLid && participant?.includes(botLid.replace('@lid', ''))) ||
+            // d) O participante citado for o LID fixo do ambiente
+            Boolean(participant?.includes('93764269928629'));
+    }
+
+    // Dispara a resposta da IA 💖
+    if (foiMencionada || foiRespondida) {
+        try {
+            await msg.react('✨');
+
+            let mensagemLimpa = body.replace(/@\d+/g, '').trim() || 'Oi, sapinha!';
+
+            // Resgata o contexto do grupo
+            const historicoContexto = obterHistoricoGrupo(groupId);
+
+            // Gera a resposta com contexto
+            const respostaIA = await gerarRespostaSapinha(mensagemLimpa, historicoContexto);
+
+            // Adiciona a resposta da Sapinha ao histórico para ela se lembrar do que falou
+            adicionarMensagemAoHistorico(groupId, 'assistant', respostaIA);
+
+            await msg.reply(respostaIA);;
+        } catch (error) {
+            console.error('Erro ao gerar resposta da IA:', error);
+            await msg.reply('🐸💔 A sapinha deu uma moscada aqui! Tenta me chamar de novo? ✨');
+        }
+    }
 });
 
 // Inicialização da aplicação
