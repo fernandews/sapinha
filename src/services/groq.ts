@@ -24,7 +24,7 @@ export async function gerarRespostaSapinha(mensagemAtual: string, historico: Cha
             messages,
             model: 'qwen/qwen3.6-27b',
             temperature: 0.85,
-            max_tokens: 600,
+            max_tokens: 900,
         });
 
         let resposta = chatCompletion.choices[0]?.message?.content || '🐸✨ Ops, a sapinha deu uma moscada! 💕';
@@ -36,7 +36,7 @@ export async function gerarRespostaSapinha(mensagemAtual: string, historico: Cha
 
         return resposta;
     } catch (error) {
-        console.error('Erro na chamada da Groq:', error);
+        console.log('Erro na chamada da Groq:', error);
         return '🐸💔 Poxa, a sapinha teve um probleminha para pensar agora! ✨';
     }
 }

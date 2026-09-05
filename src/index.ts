@@ -173,20 +173,19 @@ client.on('message', async (msg: Message) => {
             // d) O participante citado for o LID fixo do ambiente
             Boolean(participant?.includes('93764269928629'));
     }
+    console.log(`💬 Mensagem recebida: "${body}" | Mencionada: ${foiMencionada} | Respondida: ${foiRespondida}`);
 
     // Dispara a resposta da IA 💖
     if (foiMencionada || foiRespondida) {
         try {
-            await msg.react('✨');
-
+            console.log('🐸✨ A Sapinha foi chamada! Gerando resposta com contexto...');
             let mensagemLimpa = body.replace(/@\d+/g, '').trim() || 'Oi, sapinha!';
 
             // Resgata o contexto do grupo
             const historicoContexto = obterHistoricoGrupo(groupId);
-
             // Gera a resposta com contexto
             const respostaIA = await gerarRespostaSapinha(mensagemLimpa, historicoContexto);
-
+            console.log(`💬 Resposta da IA: "${respostaIA}"`);
             // Adiciona a resposta da Sapinha ao histórico para ela se lembrar do que falou
             adicionarMensagemAoHistorico(groupId, 'assistant', respostaIA);
 
