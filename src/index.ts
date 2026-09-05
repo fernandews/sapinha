@@ -52,20 +52,49 @@ client.on('ready', () => {
     console.log('🤖 Bot em TypeScript totalmente conectado e pronto para uso!');
 });
 
-client.on('message_create', async (msg: Message) => {
-    const body = msg.body.trim();
+client.on('message', async (msg: Message) => {
+    // 1. Ignores mensagens vazias
+    const body = msg.body?.trim();
     if (!body) return;
+
+    // 2. Trava de Grupo: Garante que o chat é um grupo 🐸🛡️✨
+    const chat = await msg.getChat();
+    if (!chat.isGroup) {
+        // Ignora mensagens enviadas no PV (não processa nem responde)
+        return;
+    }
 
     const args = body.split(/ +/);
     const trigger = args.shift()?.toLowerCase();
 
     if (!trigger) return;
 
-    // 1. Executa o comando se existir no Map
+    // 3. Execução dos Comandos
     if (commands.has(trigger)) {
         try {
             const command = commands.get(trigger);
-            await command?.execute(msg, client, args);
+
+            if (command) {
+                // Checagem de Administradora (adminOnly)
+                if (command.adminOnly) {
+                    const groupChat = chat as any;
+                    const authorId = msg.author || msg.from;
+
+                    const participant = groupChat.participants.find(
+                        (p: any) => p.id._serialized === authorId
+                    );
+
+                    const isAdmin = participant?.isAdmin || participant?.isSuperAdmin;
+
+                    if (!isAdmin) {
+                        await msg.reply('🐸🚫 Oops, Esse comando é exclusivo para as administradoras do grupo! 💕✨');
+                        return;
+                    }
+                }
+
+                // Executa o comando
+                await command.execute(msg, client, args, commands);
+            }
         } catch (error) {
             console.error(`Erro ao executar o comando ${trigger}:`, error);
             await msg.reply('❌ Ocorreu um erro ao executar esse comando.');
@@ -73,8 +102,7 @@ client.on('message_create', async (msg: Message) => {
         return;
     }
 
-    // 2. Espaço reservado para envio de mensagens normais para a LLM (Llama / Groq)
-    // Exemplo futuro: if (!msg.fromMe) await responderComLLM(msg);
+    // 4. Espaço reservado para a IA (Groq/Llama) responder conversas normais no grupo 🐸🌈✨
 });
 
 // Inicialização da aplicação

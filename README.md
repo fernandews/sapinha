@@ -91,6 +91,6 @@ Aguarde a mensagem no terminal:
 🤖 Bot em TypeScript totalmente conectado e pronto para uso!
 ```
 
-## 👩🏽‍💻 Como Testar o Bot Localmente
+## 👩🏽‍💻 Como contribuir para o projeto
 
 Para saber como mudar a personalidade do bot e criar seus próprios comandos, leia o [CONTRIBUTING.md](https://github.com/fernandews/sapinha/blob/main/CONTRIBUTING.md)
