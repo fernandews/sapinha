@@ -23,16 +23,19 @@ export async function gerarRespostaSapinha(mensagemAtual: string, historico: Cha
         const chatCompletion = await groq.chat.completions.create({
             messages,
             model: 'qwen/qwen3.6-27b',
-            temperature: 0.85,
-            max_tokens: 900,
+            temperature: 0.7,
+            max_tokens: 500,
         });
 
         let resposta = chatCompletion.choices[0]?.message?.content || '🐸✨ Ops, a sapinha deu uma moscada! 💕';
 
-        // Filtro de limpeza do modelo
+        console.log(resposta)
+        // Filtro de limpeza do modelo)
         resposta = resposta.replace(/<think>[\s\S]*?<\/think>/gi, '');
         resposta = resposta.replace(/<think>[\s\S]*/gi, '');
         resposta = resposta.trim();
+
+        console.log('💬 Resposta da Groq:', resposta);
 
         return resposta;
     } catch (error) {
