@@ -29,9 +29,6 @@ export async function gerarRespostaSapinha(mensagemAtual: string, historico: Cha
         });
 
         let resposta = chatCompletion.choices[0]?.message?.content || '🐸✨ Ops, a sapinha deu uma moscada! 💕';
-
-        console.log(resposta)
-        // Filtro de limpeza do modelo)
         resposta = resposta.replace(/<think>[\s\S]*?<\/think>/gi, '');
         resposta = resposta.replace(/<think>[\s\S]*/gi, '');
         resposta = resposta.trim();

@@ -8,6 +8,7 @@ import { loadCommands } from './utils/loadCommands';
 import { isUnwantedMessage } from './utils/isUnwantedMessages';
 import { processCommand } from './utils/processCommand';
 import { clientState } from './services/clientState';
+import { iaFoiChamada } from './utils/iaFoiChamada';
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -29,8 +30,7 @@ const client = new Client({
     }
 });
 
-const commands = await loadCommands();
-
+let commands: Map<string, Command> = new Map();
 // Eventos do WhatsApp Client
 client.on('qr', (qr: string) => {
     console.log('📱 Escaneie o QR Code abaixo com o WhatsApp Business:');
@@ -56,47 +56,8 @@ client.on('message', async (msg: Message) => {
     }
 
     // 4. Espaço reservado para a IA (Groq/Llama) responder conversas normais no grupo 🐸🌈✨
-    const rawData = (msg as any)._data;
-    const body = msg.body?.trim();
-    if (!body.startsWith('!')) {
-        adicionarMensagemAoHistorico(groupId, 'user', body);
-    }
-
-    // Lista de menções na mensagem (array de IDs)
-    const mentionedJids: string[] = rawData?.mentionedJidList || msg.mentionedIds || [];
-
-    // Checa se algum dos IDs mencionados bate com o número ou com o LID da Sapinha 🐸🛡️
-    const foiMencionada = mentionedJids.some((jid) => {
-        if (!jid) return false;
-        // 1. Confere contra o LID capturado
-        if (clientState.botLid() && jid.includes(clientState.botLid().replace('@lid', ''))) return true;
-        // 2. Confere contra o número de telefone
-        if (clientState.botNumber() && jid.includes(clientState.botNumber())) return true;
-        // 3. Confere o LID que você viu nos logs (fallback)
-        if (jid.includes('93764269928629')) return true;
-        
-        return false;
-    });
-
-    // Checa se responderam a uma mensagem da Sapinha
-    let foiRespondida = false;
-    if (msg.hasQuotedMsg && rawData?.quotedMsg) {
-        const q = rawData.quotedMsg;
-        const participant = rawData.quotedParticipant || q.author || q.from;
-
-        // A mensagem citada pertence à Sapinha se:
-        foiRespondida = 
-            // a) O indicador nativo de autoria do bot for verdadeiro
-            Boolean(q.fromMe) || 
-            // b) O autor da mensagem citada for o número do bot
-            Boolean(clientState.botNumber() && participant?.includes(clientState.botNumber())) ||
-            // c) O autor da mensagem citada for o LID do bot
-            Boolean(clientState.botLid() && participant?.includes(clientState.botLid().replace('@lid', ''))) ||
-            // d) O participante citado for o LID fixo do ambiente
-            Boolean(participant?.includes('93764269928629'));
-    }
-
-    if (foiMencionada || foiRespondida) {
+    console.log(`Mensagem recebida de ${groupId}: ${msg}`);
+    if (iaFoiChamada(msg)) {
         try {
             await processarMensagem(msg, groupId);
         } catch (error) {
@@ -108,7 +69,7 @@ client.on('message', async (msg: Message) => {
 
 // Inicialização da aplicação
 const startApp = async () => {
-    await loadCommands();
+    commands = await loadCommands();
     await client.initialize();
 };
 
