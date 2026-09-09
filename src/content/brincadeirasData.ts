@@ -1,13 +1,9 @@
-export interface BrincadeiraItem {
-    titulo: string;
-    texto: string;
-}
-
+import { OptionText } from "../@types/commandOption";
 
 // Textos Enviados no WhatsApp
 export const brincadeirasMenu = '🐸🌈 *MENU DE BRINCADEIRAS DA SAPINHA* ✨💕\n\n';
 
-export const brincadeirasOptions: Record<string, BrincadeiraItem> = {
+export const brincadeirasOptions: Record<string, OptionText> = {
     '1': {
         titulo: 'Verdade ou Desafio',
         texto: '🎲 *VERDADE OU DESAFIO*\n\n1. Escolha quem vai começar.\n2. Mande a pergunta ou o desafio aqui no grupo!\n\n[Insira seu texto personalizado aqui]'

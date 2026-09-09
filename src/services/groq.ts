@@ -25,6 +25,7 @@ export async function gerarRespostaSapinha(mensagemAtual: string, historico: Cha
             model: 'qwen/qwen3.6-27b',
             temperature: 0.7,
             max_tokens: 500,
+            reasoning_effort: "none",
         });
 
         let resposta = chatCompletion.choices[0]?.message?.content || '🐸✨ Ops, a sapinha deu uma moscada! 💕';
