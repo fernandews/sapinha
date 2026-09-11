@@ -56,7 +56,7 @@ client.on('message', async (msg: Message) => {
     }
 
     // 4. Espaço reservado para a IA (Groq/Llama) responder conversas normais no grupo 🐸🌈✨
-    console.log(`Mensagem recebida de ${groupId}: ${msg}`);
+    console.log(`Mensagem recebida de ${groupId}: ${msg.body}`);
     if (iaFoiChamada(msg)) {
         try {
             await processarMensagem(msg, groupId);
@@ -74,3 +74,12 @@ const startApp = async () => {
 };
 
 startApp().catch((err) => console.error('Erro na inicialização do bot:', err));
+
+// Tratadores de Exceção Globais (Evita queda do processo Node)
+process.on('unhandledRejection', (reason) => {
+    console.error('Promessa não tratada capturada:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Exceção não tratada capturada:', err);
+});
