@@ -1,24 +1,39 @@
-import { OptionText } from "../@types/commandOption";
+import { OptionImage } from "../@types/commandOption";
 
 // Textos Enviados no WhatsApp
 export const brincadeirasMenu = '🐸🌈 *MENU DE BRINCADEIRAS DA SAPINHA* ✨💕\n\n';
 
-export const brincadeirasOptions: Record<string, OptionText> = {
-    '1': {
-        titulo: 'Verdade ou Desafio',
-        texto: '🎲 *VERDADE OU DESAFIO*\n\n1. Escolha quem vai começar.\n2. Mande a pergunta ou o desafio aqui no grupo!\n\n[Insira seu texto personalizado aqui]'
+export const brincadeirasOptions: Record<string, OptionImage> = {
+    'criminal': {
+        titulo: 'Arquivo Criminal',
+        imagem: './src/assets/brincadeiras/a-criminal.jpeg',},
+    'ppp': {
+        titulo: 'Penso, Pego, Passo',
+        imagem: './src/assets/brincadeiras/ppp.jpeg',
     },
-    '2': {
-        titulo: 'Quem é mais provável',
-        texto: '👀 *QUEM É MAIS PROVÁVEL*\n\nVote em quem do grupo tem mais cara de aprontar essa!\n\n[Insira seu texto personalizado aqui]'
+    'namoro': {
+        titulo: 'Deu Namoro',
+        imagem: './src/assets/brincadeiras/deu-namoro.jpeg',
     },
-    '3': {
-        titulo: 'O que você prefere',
-        texto: '⚖️ *O QUE VOCÊ PREFERE*\n\nOpção A ou Opção B? Mandem as escolhas no chat!\n\n[Insira seu texto personalizado aqui]'
-    }
+    'frente': {
+        titulo: 'De Frente com Numasapa',
+        imagem: './src/assets/brincadeiras/df-grupo.jpeg',
+    },
+    'tinder': {
+        titulo: 'Tinder do Numasapa',
+        imagem: './src/assets/brincadeiras/tinder.jpeg',
+    },
+    'tribunal': {
+        titulo: 'Tribunal do Numasapa',
+        imagem: './src/assets/brincadeiras/tribunal.jpeg',
+    },
+    'diamante': {
+        titulo: 'Diamante da Temporada',
+        imagem: './src/assets/brincadeiras/diamante.jpeg',
+    },
 };
 
-export const brincadeirasMenuPS = '\n💡 *Dica:* Digite o número da brincadeira (ex: !brincadeira 1)';
+export const brincadeirasMenuPS = '\n💡 *Dica:* Digite o nome da brincadeira (ex: !brincadeira namoro)';
 
 export const opcaoInvalidaTexto = '❌ Opção inválida! Digite *!brincadeiras* para ver o menu.';
 
