@@ -1,6 +1,6 @@
 # 🐸 Sapinha
 
-Bot modular para WhatsApp desenvolvido em **Node.js** com **TypeScript**, com suporte a comandos customizados, integração com **Groq Cloud (Llama 3.1 8B / Llama 3.2 Vision)** para respostas inteligentes e **Whisper** para áudios.
+Bot modular para WhatsApp desenvolvido em **Node.js** com **TypeScript**, com suporte a comandos customizados, integração com **Gemini 3.5 flash lite** para respostas de texto e qualquer outro tipo de mídia.
 
 ---
 
@@ -33,7 +33,7 @@ npm install
 Crie um arquivo chamado .env na raiz do projeto contendo as suas chaves de API:
 
 ```code
-GROQ_API_KEY=sua_chave_groq_aqui
+GEMINI_API_KEY=sua_chave_aqui
 ```
 
 ## ⚙️ Scripts Disponíveis
@@ -88,7 +88,7 @@ Abra o WhatsApp no celular, vá em Aparelhos Conectados > Conectar um aparelho e
 Aguarde a mensagem no terminal:
 
 ```Bash
-🤖 Bot em TypeScript totalmente conectado e pronto para uso!
+Sapinha está pronta!
 ```
 
 ## 👩🏽‍💻 Como contribuir para o projeto
