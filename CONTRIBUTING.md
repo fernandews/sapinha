@@ -54,12 +54,12 @@ export default meuComandoAdmin;
 ```
 
 ## 🧠 Arquitetura da LLM e Personalidade da Sapinha
-A sapinha utiliza a *API da Groq Cloud (Llama 3.1 8B)* para interagir e responder aos membros do grupo quando a mensagem **não** é um comando prefixado (mensagens que não começam com !).
+A sapinha utiliza a *API da Gemini* para interagir e responder aos membros do grupo quando a mensagem **não** é um comando prefixado (mensagens que não começam com !).
 
 ### 📂 Onde fica cada parte da IA:
-#### Serviço de Conexão `(src/services/groq.ts)`:
+#### Serviço de Conexão `(src/services/gemini.ts)`:
 
-Concentra a inicialização do SDK da Groq e a chamada da API, recebendo a mensagem do usuário e retornando a resposta em texto.
+Concentra a inicialização do SDK do Gemini e a chamada da API, recebendo a mensagem do usuário e retornando a resposta em texto. O projeto começou com a Groq, mas trocamos para Gemini por causa da multimodalidade nativa da API.
 
 #### Personalidade e System Prompt `(src/content/systemPrompts.ts)`:
 
