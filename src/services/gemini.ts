@@ -86,7 +86,6 @@ export async function gerarRespostaSapinha(
         let resposta = result.response.text();
 
         resposta = resposta.trim();
-        console.log('💬 Resposta do Gemini (Sapinha):', resposta);
 
         return resposta || '🐸✨ Ops, a sapinha deu uma moscada! 💕';
 

@@ -54,9 +54,7 @@ client.on('message', async (msg: Message) => {
     if (trigger && commands.has(trigger)) {
         await processCommand(msg, client, commands, trigger);
     }
-
-    // 4. Espaço reservado para a IA (Groq/Llama) responder conversas normais no grupo 🐸🌈✨
-    console.log(`Mensagem recebida de ${groupId}: ${msg.body}`);
+    
     if (iaFoiChamada(msg)) {
         try {
             await processarMensagem(msg, groupId);

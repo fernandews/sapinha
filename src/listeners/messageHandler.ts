@@ -49,14 +49,11 @@ async function salvarEResponder(texto: string, groupId: string, midias: MidiaPar
 export async function processarMensagem(message: Message, groupId: string) {
     // 1. Trava: Se a IA estiver desativada, ignora o processamento
     if (!stateIA.isAtiva()) {
-        console.log('A IA está desativada. Ignorando processamento da mensagem.');
         await message.reply(`🐸 A Sapinha está dormindo no momento. Porque você não conversa com uma pessoa mesmo? ✨💖`);
         return;
     }
 
     try {
-        console.log(`[MessageReceived] Tipo: ${message.type} | Grupo: ${groupId}`);
-
         const midiasColetadas: MidiaPart[] = [];
         let textoContextoQuoted = '';
 

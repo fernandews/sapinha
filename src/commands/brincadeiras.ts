@@ -7,7 +7,6 @@ const brincadeirasCommandImplement: Command = {
 
     async execute(msg, client, args) {
         if (args.length === 1) {
-            console.log('Comando de brincadeiras chamado sem argumentos. Exibindo menu.');
             let menu = brincadeirasMenu;
             for (const [chave, item] of Object.entries(brincadeirasOptions)) {
                 menu += `*!brincadeira ${chave}* - ${item.titulo}\n`;
