@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Client, GroupChat, LocalAuth, Message } from 'whatsapp-web.js';
+import { Client, GroupChat, LocalAuth, Message, MessageMedia } from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 import { Command } from './@types/command';
 import { adicionarMensagemAoHistorico } from './services/history';
@@ -41,7 +41,7 @@ client.on('ready', async () => {
     console.log('🐸 Sapinha está pronta!');
 
     const chats = await client.getChats();
-    clientState.setMainChat(chats.find((chat) => chat.isGroup && chat.name.includes('NUMASAPA')) as GroupChat | null);
+    clientState.setMainChat(chats.find((chat) => chat.isGroup && chat.name.includes('teste')) as GroupChat | null);
     clientState.setBotNumber(client.info?.wid?.user || "");
 });
 
@@ -64,6 +64,16 @@ client.on('message', async (msg: Message) => {
             console.error('Erro ao gerar resposta da IA:', error);
             await msg.reply('🐸💔 A sapinha deu uma moscada aqui! Tenta me chamar de novo? ✨');
         }
+    }
+});
+
+client.on('group_join', async (notification) => {
+    try {
+        const media = MessageMedia.fromFilePath('./src/assets/bem-vindas.jpeg');
+        await client.sendMessage(notification.chatId, media);
+                
+    } catch (error) {
+        console.error('❌ Erro ao enviar mensagem de boas-vindas:', error);
     }
 });
 
