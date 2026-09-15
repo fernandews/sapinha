@@ -4,6 +4,8 @@ import { pathToFileURL } from 'url';
 import { Command } from '../@types/command';
 
 export const loadCommands = async (): Promise<Map<string, Command>> => {
+    console.log('tentando carregar comandos');
+    
     const commands = new Map<string, Command>();
     const commandsPath = path.join(__dirname, '../commands');
     
@@ -32,5 +34,7 @@ export const loadCommands = async (): Promise<Map<string, Command>> => {
         }
     }
 
+    console.log(commands);
+    
     return commands;
 };

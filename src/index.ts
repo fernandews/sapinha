@@ -66,7 +66,6 @@ client.on('message', async (msg: Message) => {
 
     const args = msg.body?.split(/ +/);
     const trigger = args?.shift()?.toLowerCase();
-    console.log(commands);
     
     if (trigger && commands.has(trigger)) {
         console.log('mensagem com trigger');
