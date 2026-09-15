@@ -71,3 +71,7 @@ Separação de Conteúdo: Mantenha textos longos e dados na pasta `src/content/`
 **Apenas Grupos:** O bot é configurado para funcionar exclusivamente dentro de grupos. *Não remova a trava if (!chat.isGroup) no index.ts*.
 
 **Segurança:** Nunca comite arquivos `.env`, chaves de API ou a pasta de sessão `.wwebjs_auth/`.
+
+## 🚀 Deploy
+Para saber mais sobre o deploy e a infraestrutura do projeto, leia o INFRA.md
+
