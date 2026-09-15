@@ -33,9 +33,11 @@ const client = new Client({
             '--no-first-run',
             '--no-zygote',
             '--disable-gpu',
-            '--blink-settings=imagesEnabled=false', // Desativa imagens no Chromium
-            '--disable-remote-fonts',              // Desativa download de fontes
-            '--disable-speech-api'
+            '--blink-settings=imagesEnabled=false', // Não carrega nem processa imagens
+            '--disable-remote-fonts',              // Não baixa fontes externas
+            '--disable-speech-api',
+            '--disable-background-networking',
+            '--disable-sync'
         ]
     },
     webVersionCache: {
