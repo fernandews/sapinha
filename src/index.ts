@@ -32,17 +32,10 @@ const client = new Client({
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage', // Evita estouro de memória compartilhada usando /tmp
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
+            '--disable-dev-shm-usage', // Mantém o uso da pasta /tmp para não estourar memória compartilhada
             '--disable-gpu',
-            '--disable-extensions',
-            '--mute-audio',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding'
+            '--no-first-run',
+            '--no-zygote'
         ],
     }
 });

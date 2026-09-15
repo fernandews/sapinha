@@ -1,47 +1,68 @@
-# 🚀 Guia de Deploy e Arquitetura de Hospedagem
+# 🚀 Sapinha Bot - Documentação de Infraestrutura & Deploy (GCP)
 
-Este documento descreve o fluxo de implantação contínua (CI/CD) da **Sapinha** e a infraestrutura que mantém o bot ativo 24 horas por dia, 7 dias por semana.
+## 📌 Visão Geral
 
-> **NUNCA suba alterações parciais, rascunhos ou código não testado diretamente para a branch `main`.**
- 
-A branch `main` está conectada diretamente ao ambiente de produção. Todo `git push` disparado para ela aciona um **deploy automático e imediato**. Código quebrado enviará falhas direto para o ambiente rodando no WhatsApp.
-
-**Regra de Ouro:** Teste todas as alterações localmente. Sempre que for desenvolver uma nova funcionalidade, crie uma nova branch (ex: `feature/novo-comando`) e só realize o merge para a `main` após validação completa.
-
-## 🛠️ Arquitetura de Infraestrutura
-
-A infraestrutura do bot é composta por duas camadas gratuitas e integradas de forma resiliente:
- ```
-┌─────────────────┐       git push       ┌──────────────────┐
-│ Repositório     │ ───────────────────> │ Render.com       │
-│ (GitHub / main) │   Deploy Automático  │ (Web Service Node)│
-└─────────────────┘                      └─────────┬────────┘
-│
-Ping HTTP │ Ping a cada 5m
-(Keepalive)│ (Evita sleep)
-▼
-┌──────────────────┐
-│ UptimeRobot      │
-│ (Monitoramento)  │
-└──────────────────┘
-```
-
-### 1. Servidor de Aplicação (Render.com)
-* **Ambiente:** Servidor Linux gerenciado executando o runtime do Node.js.
-* **Automação de Build:** Durante a compilação, o script de pós-instalação garante o download do binário headless do Chromium para execução do `whatsapp-web.js`.
-* **Variáveis de Ambiente:** Todas as chaves de API, senhas e credenciais confidenciais estão armazenadas em variáveis de ambiente protegidas no painel do servidor. **Nenhuma chave fica salva no código-fonte.**
-
-### 2. Monitor de Disponibilidade (UptimeRobot)
-* **Objetivo:** Garantir a operação ininterrupta do serviço na camada *Free*.
-* **Mecanismo:** A instância do Render entra em modo de repouso (*sleep*) após 15 minutos sem receber chamadas web externas. Para contornar essa restrição, o bot expõe um micro-servidor HTTP básico interno.
-* **Keep-Alive:** O UptimeRobot dispara requisições periódicas a cada 5 minutos para esse endpoint HTTP, simulando tráfego real e mantendo o bot ativo e respondendo no WhatsApp continuamente.
+O bot **Sapinha** é uma aplicação Node.js / TypeScript integrada com `whatsapp-web.js` (Headless Chromium) e APIs externas de LLM. Devido ao alto consumo de memória RAM decorrente da execução do Chromium e da sincronização contínua via WebSocket em grupos movimentados do WhatsApp, a aplicação foi colocada na Google Cloud Platform (GCP).
 
 ---
 
-## 💻 Fluxo de Deploy de Novas Atualizações
+## 🏗️ Especificações da Infraestrutura (Always Free)
 
-Para enviar uma atualização aprovada para produção, siga o fluxo padronizado do Git:
+* **Provedor:** Google Cloud Platform (GCP) - Compute Engine
+* **Tipo de Instância:** `e2-micro` (1 vCPU compartilhada, 1 GB RAM física)
+* **Região:** `us-central1` (Iowa)
+* **Sistema Operacional:** Ubuntu 26.04 LTS
+* **Disco:** 30 GB Standard Persistent Disk (Disco Rígido Padrão)
+* **Estratégia Anti-OOM (Memória Virtual):** **2 GB de arquivo Swap** configurados no disco, totalizando **~3 GB de memória utilizável** (RAM + Swap).
 
-1. **Garantir que a build local funciona:**
-   ```bash
-   npm run build
+---
+
+## 🛠️ Como Mandar uma Nova Versão para a Cloud (Deploy Contínuo)
+Sempre que você fizer alterações no código local e der git push para o repositório (main), siga estes passos no terminal SSH da VM na GCP para atualizar a produção:
+
+Passo a passo rápido:
+```bash
+# 1. Acesse o diretório do projeto
+cd ~/SEU_REPOSITORIO
+
+# 2. Puxe as atualizações do GitHub
+git pull origin main
+
+# 3. Instale novas dependências (se houver)
+npm install
+
+# 4. Recompile o código TypeScript
+npm run build
+
+# 5. Reinicie o processo no PM2 (sem perda de sessão do WhatsApp)
+pm2 restart sapinha-bot
+```
+
+## Comandos Úteis do PM2 para Monitoramento
+# Ver status e uso de memória:
+
+```Bash
+pm2 list
+# ou monitor em tempo real:
+pm2 monit`
+```
+
+# Acompanhar logs ao vivo (mensagens, erros ou QR Code):
+
+```Bash
+pm2 logs sapinha-bot
+```
+
+# Limpeza em caso de instâncias duplicadas:
+
+```bash
+pm2 delete all
+pm2 start dist/index.js --name sapinha-bot
+pm2 save
+```
+
+# Persistência de inicialização em reboot da VM:
+```bash
+pm2 startup  # (execute o comando sudo gerado pelo PM2)
+pm2 save
+```
