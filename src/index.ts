@@ -52,7 +52,7 @@ client.on('ready', async () => {
     console.log('🐸 Sapinha está pronta!');
 
     const chats = await client.getChats();
-    clientState.setMainChat(chats.find((chat) => chat.isGroup && chat.name.includes('teste')) as GroupChat | null);
+    clientState.setMainChat(chats.find((chat) => chat.isGroup && chat.name.includes('NUMASAPA')) as GroupChat | null);
     clientState.setBotNumber(client.info?.wid?.user || "");
 });
 
