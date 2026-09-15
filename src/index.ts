@@ -10,6 +10,17 @@ import { processCommand } from './utils/processCommand';
 import { clientState } from './services/clientState';
 import { iaFoiChamada } from './utils/iaFoiChamada';
 
+import http from 'http';
+
+// Servidor minimalista para a Render/UptimeRobot checarem que o bot está vivo
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('🐸 Sapinha está viva!');
+}).listen(PORT, () => {
+    console.log(`🌐 Servidor HTTP rodando na porta ${PORT}`);
+});
+
 const client = new Client({
     authStrategy: new LocalAuth(),
     // Trava a versão do WhatsApp Web para uma versão estável e compatível 🐸🛡️
@@ -54,7 +65,7 @@ client.on('message', async (msg: Message) => {
     if (trigger && commands.has(trigger)) {
         await processCommand(msg, client, commands, trigger);
     }
-    
+
     if (iaFoiChamada(msg)) {
         try {
             await processarMensagem(msg, groupId);
