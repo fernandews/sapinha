@@ -32,7 +32,10 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--single-process',
+            '--disable-gpu',
+            '--blink-settings=imagesEnabled=false', // Desativa imagens no Chromium
+            '--disable-remote-fonts',              // Desativa download de fontes
+            '--disable-speech-api'
         ]
     },
     webVersionCache: {
