@@ -62,12 +62,14 @@ client.on('ready', async () => {
 
 client.on('message', async (msg: Message) => {
     if (isUnwantedMessage(msg)) return;
-    console.log('mensagem não foi ignorada')
     const groupId = msg.from;
 
     const args = msg.body?.split(/ +/);
     const trigger = args?.shift()?.toLowerCase();
+    console.log(commands);
+    
     if (trigger && commands.has(trigger)) {
+        console.log('mensagem com trigger');
         await processCommand(msg, client, commands, trigger);
     }
 
