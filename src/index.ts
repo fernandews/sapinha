@@ -2,7 +2,6 @@ import 'dotenv/config';
 import { Client, GroupChat, LocalAuth, Message, MessageMedia } from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 import { Command } from './@types/command';
-import { adicionarMensagemAoHistorico } from './services/history';
 import { processarMensagem } from './listeners/messageHandler';
 import { loadCommands } from './utils/loadCommands';
 import { isUnwantedMessage } from './utils/isUnwantedMessages';
@@ -11,6 +10,7 @@ import { clientState } from './services/clientState';
 import { iaFoiChamada } from './utils/iaFoiChamada';
 
 import http from 'http';
+import path from 'path';
 
 // Servidor minimalista para a Render/UptimeRobot checarem que o bot está vivo
 const PORT = process.env.PORT || 3000;
@@ -22,22 +22,23 @@ http.createServer((req, res) => {
 });
 
 const client = new Client({
-    authStrategy: new LocalAuth(),
-    // Trava a versão do WhatsApp Web para uma versão estável e compatível 🐸🛡️
-    webVersionCache: {
-        type: 'none',
-    },
+    authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
     puppeteer: {
         headless: true,
+        channel: 'chrome',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage', // Mantém o uso da pasta /tmp para não estourar memória compartilhada
-            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
             '--no-first-run',
-            '--no-zygote'
-        ],
-    }
+            '--no-zygote',
+            '--single-process',
+        ]
+    },
+    webVersionCache: {
+        type: 'none',
+    },
 });
 
 let commands: Map<string, Command> = new Map();
