@@ -21,28 +21,26 @@ http.createServer((req, res) => {
     console.log(`🌐 Servidor HTTP rodando na porta ${PORT}`);
 });
 
+const isWindows = process.platform === 'win32';
 const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
+    authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        ...(isWindows ? { channel: 'chrome' } : {}),
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
+            '--disable-dev-shm-usage', // Impede estouro de memória compartilhada usando /tmp
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
             '--disable-gpu',
-            '--blink-settings=imagesEnabled=false', // Não carrega nem processa imagens
-            '--disable-remote-fonts',              // Não baixa fontes externas
-            '--disable-speech-api',
+            '--disable-extensions',
+            '--mute-audio',            // Silencia o áudio no Chromium em background sem afetar a leitura do buffer
             '--disable-background-networking',
-            '--disable-sync'
+            '--disable-background-timer-throttling'
         ]
-    },
-    webVersionCache: {
-        type: 'none',
-    },
+    }
 });
 
 let commands: Map<string, Command> = new Map();
