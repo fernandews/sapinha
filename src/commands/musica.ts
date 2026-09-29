@@ -1,23 +1,19 @@
 import { Message, MessageMedia } from 'whatsapp-web.js';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
-
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
-
+import { randomUUID } from 'crypto';
 import { Command } from '../@types/command';
-
-import yts from 'yt-search';
 import { musicaCommand } from '../content/musicaData';
+import yts from 'yt-search';
 
 export async function tratarComandoMusica(
     message: Message,
     query: string,
     client: any
 ) {
-    const termoBusca = query
-        .replace(/^[!#?]+/, '')
-        .trim();
+    const termoBusca = query.replace(/^[!#?]+/, '').trim();
 
     if (!termoBusca) {
         await message.reply(
@@ -28,21 +24,15 @@ export async function tratarComandoMusica(
     }
 
     const tempFolder = path.resolve(process.cwd(), 'temp');
-
-    if (!fs.existsSync(tempFolder)) {
-        fs.mkdirSync(tempFolder, { recursive: true });
-    }
+    fs.mkdirSync(tempFolder, { recursive: true });
 
     let arquivoBaixado: string | null = null;
+    let etapa = 'pesquisa';
 
     try {
         await message.reply(
             `🐸🎵 Procurando por "${termoBusca}"...`
         );
-
-        // --------------------------------------------------
-        // 1. Pesquisa no YouTube
-        // --------------------------------------------------
 
         const searchResult = await yts(termoBusca);
 
@@ -55,52 +45,27 @@ export async function tratarComandoMusica(
 
         const video = searchResult.videos[0];
 
-        console.log(
-            `[yt-search] Encontrado: ${video.title}`
-        );
+        console.log(`[yt-search] Encontrado: ${video.title}`);
+        console.log(`[yt-search] URL: ${video.url}`);
 
-        console.log(
-            '[yt-search] URL: ${video.url}'
-        );
+        // Nome exclusivo para evitar misturar pedidos simultâneos.
+        const fileBaseName = `audio_${randomUUID()}`;
 
-        // --------------------------------------------------
-        // 2. Define os arquivos temporários
-        // --------------------------------------------------
-
-        const fileBaseName = 'audio_${Date.now()}';
-
+        // As crases e o "s" em %(ext)s são necessários.
         const outputPattern = path.join(
             tempFolder,
-            '${fileBaseName}.%(ext)'
+            `${fileBaseName}.%(ext)s`
         );
 
-        const ffmpegPath = path.resolve(
-            ffmpegInstaller.path
+        const ffmpegPath = path.resolve(ffmpegInstaller.path);
+
+        const ytDlpBinary = path.resolve(
+            process.cwd(),
+            'node_modules',
+            'yt-dlp-exec',
+            'bin',
+            process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
         );
-
-        // --------------------------------------------------
-        // 3. Localiza o yt-dlp
-        // --------------------------------------------------
-
-        let ytDlpBinary: string;
-
-        if (process.platform === 'win32') {
-            ytDlpBinary = path.resolve(
-                process.cwd(),
-                'node_modules',
-                'yt-dlp-exec',
-                'bin',
-                'yt-dlp.exe'
-            );
-        } else {
-            ytDlpBinary = path.resolve(
-                process.cwd(),
-                'node_modules',
-                'yt-dlp-exec',
-                'bin',
-                'yt-dlp'
-            );
-        }
 
         if (!fs.existsSync(ytDlpBinary)) {
             throw new Error(
@@ -114,69 +79,42 @@ export async function tratarComandoMusica(
             );
         }
 
-        console.log(
-            `[yt-dlp] Executável: ${ytDlpBinary}`
-        );
+        console.log(`[yt-dlp] Executável: ${ytDlpBinary}`);
+        console.log(`[ffmpeg] Executável: ${ffmpegPath}`);
 
-        console.log(
-            `[ffmpeg] Executável: ${ffmpegPath}`
-        );
-
-        // --------------------------------------------------
-        // 4. Baixa e converte para MP3
-        // --------------------------------------------------
+        etapa = 'download e conversão';
 
         await new Promise<void>((resolve, reject) => {
             const args = [
                 video.url,
-
                 '--extract-audio',
-                '--audio-format',
-                'mp3',
-                '--audio-quality',
-                '5',
-
-                '--output',
-                outputPattern,
-
+                '--audio-format', 'mp3',
+                '--audio-quality', '5',
+                '--output', outputPattern,
                 '--no-playlist',
                 '--no-part',
-
                 '--restrict-filenames',
-
-                '--ffmpeg-location',
-                ffmpegPath,
-
-                // Evita algumas mensagens desnecessárias
+                '--ffmpeg-location', ffmpegPath,
                 '--no-warnings',
-
-                // Evita tentar baixar playlist
                 '--no-check-certificates'
             ];
 
-            console.log(
-                `[yt-dlp] Iniciando download...`
-            );
+            console.log('[yt-dlp] Iniciando download...');
 
-            const child = spawn(
-                ytDlpBinary,
-                args,
-                {
-                    windowsHide: true
-                }
-            );
+            const child = spawn(ytDlpBinary, args, {
+                windowsHide: true
+            });
 
             let stderr = '';
 
             child.stdout.on('data', (data) => {
                 console.log(
-                   `[yt-dlp] ${data.toString().trim()}`
+                    `[yt-dlp] ${data.toString().trim()}`
                 );
             });
 
             child.stderr.on('data', (data) => {
                 const output = data.toString();
-
                 stderr += output;
 
                 console.error(
@@ -206,9 +144,7 @@ export async function tratarComandoMusica(
             });
         });
 
-        // --------------------------------------------------
-        // 5. Procura o MP3 criado
-        // --------------------------------------------------
+        etapa = 'localização do MP3';
 
         const arquivos = fs.readdirSync(tempFolder);
 
@@ -229,13 +165,7 @@ export async function tratarComandoMusica(
             arquivoEncontrado
         );
 
-        console.log(
-            `[arquivo] ${arquivoBaixado}`
-        );
-
-        // --------------------------------------------------
-        // 6. Verifica se o arquivo realmente existe
-        // --------------------------------------------------
+        console.log(`[arquivo] ${arquivoBaixado}`);
 
         if (!fs.existsSync(arquivoBaixado)) {
             throw new Error(
@@ -243,8 +173,7 @@ export async function tratarComandoMusica(
             );
         }
 
-        const tamanhoArquivo =
-            fs.statSync(arquivoBaixado).size;
+        const tamanhoArquivo = fs.statSync(arquivoBaixado).size;
 
         if (tamanhoArquivo <= 0) {
             throw new Error(
@@ -256,18 +185,18 @@ export async function tratarComandoMusica(
             `[arquivo] Tamanho: ${tamanhoArquivo} bytes`
         );
 
-        // --------------------------------------------------
-        // 7. Converte o arquivo para mídia do WhatsApp
-        // --------------------------------------------------
+        etapa = 'preparação da mídia';
 
-        const media =
-            MessageMedia.fromFilePath(
-                arquivoBaixado
-            );
+        const media = MessageMedia.fromFilePath(
+            arquivoBaixado
+        );
 
-        // --------------------------------------------------
-        // 8. Envia para o chat
-        // --------------------------------------------------
+        etapa = 'envio ao WhatsApp';
+
+        console.log('[whatsapp] Iniciando envio do MP3:', {
+            mimetype: media.mimetype,
+            bytes: tamanhoArquivo
+        });
 
         await client.sendMessage(
             message.from,
@@ -277,20 +206,11 @@ export async function tratarComandoMusica(
             }
         );
 
-        console.log(
-            `🎵 Música enviada: ${video.title}`
-        );
-
-        // --------------------------------------------------
-        // 9. Remove o arquivo temporário
-        // --------------------------------------------------
+        console.log(`🎵 Música enviada: ${video.title}`);
 
         try {
             fs.unlinkSync(arquivoBaixado);
-
-            console.log(
-                '[temp] Arquivo removido.'
-            );
+            console.log('[temp] Arquivo removido.');
         } catch (cleanupError) {
             console.error(
                 '[temp] Não foi possível remover o arquivo:',
@@ -299,46 +219,24 @@ export async function tratarComandoMusica(
         }
 
         arquivoBaixado = null;
-
-    } catch (error: any) {
-
+    } catch (error) {
         console.error(
-            '===================================='
-        );
-
-        console.error(
-            '❌ ERRO NO COMANDO DE MÚSICA'
-        );
-
-        console.error(
+            `❌ ERRO NO COMANDO DE MÚSICA — etapa: ${etapa}`,
             error
         );
 
-        console.error(
-            '===================================='
-        );
-
         await message.reply(
-            '🐸💔 A Sapinha não conseguiu baixar essa música.\n\n' +
-            'Tente novamente ou pesquise pelo nome exato da música.'
+            `🐸💔 Não consegui concluir a música na etapa: ${etapa}. ` +
+            'O detalhe do erro foi registrado no servidor.'
         );
-
     } finally {
-
-        // --------------------------------------------------
-        // Limpeza de segurança
-        // --------------------------------------------------
-
         if (
             arquivoBaixado &&
             fs.existsSync(arquivoBaixado)
         ) {
             try {
                 fs.unlinkSync(arquivoBaixado);
-
-                console.log(
-                    '[temp] Arquivo temporário removido.'
-                );
+                console.log('[temp] Arquivo temporário removido.');
             } catch (cleanupError) {
                 console.error(
                     '[temp] Erro ao limpar arquivo:',
@@ -349,33 +247,22 @@ export async function tratarComandoMusica(
     }
 }
 
-// ==========================================================
-// COMANDO
-// ==========================================================
-
 const musicaCommandImplement: Command = {
-
     ...musicaCommand,
 
-    async execute(
-        message,
-        client,
-        args
-    ) {
-
+    async execute(message, client, args) {
+        // O primeiro argumento é o comando (!musica, !play etc.).
         const query = args
+            .slice(1)
             .join(' ')
             .replace(/^[!#?]+/, '')
             .trim();
 
         if (!query) {
-
             await message.reply(
                 '🐸✨ Por favor, diga o nome da música ou cantor!\n\n' +
-                'Exemplo:\n' +
-                '!musica Eduardo e Mônica'
+                'Exemplo: !musica Eduardo e Mônica'
             );
-
             return;
         }
 
