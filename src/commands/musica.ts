@@ -1,4 +1,4 @@
-import { Message, MessageMedia } from 'whatsapp-web.js';
+import { Client, Message, MessageMedia } from 'whatsapp-web.js';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,63 +8,182 @@ import { Command } from '../@types/command';
 import { musicaCommand } from '../content/musicaData';
 import yts from 'yt-search';
 
+// Executa o ajuste diretamente no navegador.
+// A string evita o erro "__name is not defined" causado pelo tsx.
+async function corrigirEnvioDeMidia(
+    client: Client
+): Promise<void> {
+    const page = client.pupPage;
+
+    if (!page || page.isClosed()) {
+        throw new Error(
+            'O navegador do WhatsApp não está disponível.'
+        );
+    }
+
+    await page.evaluate(`
+        (() => {
+            const api = window.WWebJS;
+
+            if (
+                !api ||
+                typeof api.processMediaData !== 'function'
+            ) {
+                throw new Error(
+                    'A sessão do WhatsApp ainda não está pronta.'
+                );
+            }
+
+            const original = api.processMediaData;
+
+            if (original.__sapinhaMediaIdFix) {
+                return;
+            }
+
+            const corrigida = async function (...args) {
+                const media = await original.apply(this, args);
+
+                const dados = {
+                    ...media,
+                    ...(typeof media.toJSON === 'function'
+                        ? media.toJSON()
+                        : {})
+                };
+
+                // Evita que o ID interno da mídia
+                // substitua o ID da mensagem.
+                delete dados.__x_id;
+                delete dados.toJSON;
+
+                return dados;
+            };
+
+            Object.defineProperty(
+                corrigida,
+                '__sapinhaMediaIdFix',
+                { value: true }
+            );
+
+            api.processMediaData = corrigida;
+        })()
+    `);
+}
+
+function traduzirErro(error: unknown): string {
+    const texto = error instanceof Error
+        ? error.message
+        : String(error);
+
+    if (/this video is not available|video unavailable/i.test(texto)) {
+        return 'Esse vídeo está indisponível no YouTube. Tente outra música ou outro nome.';
+    }
+
+    if (/sign in to confirm|not a bot/i.test(texto)) {
+        return 'O YouTube solicitou uma verificação de acesso e bloqueou o download.';
+    }
+
+    if (/private video/i.test(texto)) {
+        return 'O vídeo é privado e não pode ser baixado com o acesso atual.';
+    }
+
+    if (/age.restricted|confirm your age/i.test(texto)) {
+        return 'O vídeo possui restrição de idade.';
+    }
+
+    if (/__name is not defined/i.test(texto)) {
+        return 'O navegador recebeu uma função auxiliar que não está disponível.';
+    }
+
+    if (/data passed to getter must include an id/i.test(texto)) {
+        return 'O WhatsApp encontrou um identificador inválido ao preparar a mensagem de áudio.';
+    }
+
+    if (/target closed|session closed|connection closed/i.test(texto)) {
+        return 'A conexão com o navegador do WhatsApp foi encerrada.';
+    }
+
+    if (/execution context was destroyed/i.test(texto)) {
+        return 'A página do WhatsApp foi recarregada durante a operação.';
+    }
+
+    if (/timed out|timeout|ETIMEDOUT/i.test(texto)) {
+        return 'A operação demorou mais do que o tempo permitido.';
+    }
+
+    if (/ENOSPC/i.test(texto)) {
+        return 'Não há espaço livre suficiente para salvar o áudio.';
+    }
+
+    if (/EACCES|EPERM/i.test(texto)) {
+        return 'O sistema negou permissão para acessar um arquivo ou executar um programa.';
+    }
+
+    if (/ENOENT/i.test(texto)) {
+        return 'Um arquivo ou programa necessário não foi encontrado.';
+    }
+
+    // Preserva mensagens em português criadas neste arquivo.
+    if (
+        /^(O |A |Não |Nenhum |yt-dlp não encontrado|FFmpeg não encontrado)/.test(
+            texto
+        )
+    ) {
+        return texto;
+    }
+
+    return 'Não foi possível concluir a operação. Consulte os detalhes técnicos no terminal.';
+}
+
 export async function tratarComandoMusica(
     message: Message,
     query: string,
-    client: any
-) {
-    const termoBusca = query.replace(/^[!#?]+/, '').trim();
+    client: Client
+): Promise<void> {
+    const termoBusca = query.trim();
 
     if (!termoBusca) {
         await message.reply(
-            '🐸✨ Por favor, diga o nome da música ou cantor!\n\n' +
+            '🐸✨ Informe o nome da música ou do cantor!\n\n' +
             'Exemplo: !musica Eduardo e Mônica'
         );
         return;
     }
 
-    const tempFolder = path.resolve(process.cwd(), 'temp');
-    fs.mkdirSync(tempFolder, { recursive: true });
-
-    let arquivoBaixado: string | null = null;
-    let etapa = 'pesquisa';
+    let pastaTemporaria: string | null = null;
+    let etapa = 'preparação';
 
     try {
-        await message.reply(
-            `🐸🎵 Procurando por "${termoBusca}"...`
+        const tempRoot = path.resolve(
+            process.cwd(),
+            'temp'
         );
 
-        const searchResult = await yts(termoBusca);
+        fs.mkdirSync(tempRoot, { recursive: true });
 
-        if (!searchResult.videos || searchResult.videos.length === 0) {
-            await message.reply(
-                '🐸💔 A Sapinha não encontrou nenhuma música com esse nome.'
-            );
-            return;
-        }
+        // Cada pedido recebe uma pasta exclusiva.
+        pastaTemporaria = fs.mkdtempSync(
+            path.join(tempRoot, 'musica-')
+        );
 
-        const video = searchResult.videos[0];
+        const nomeBase = `audio_${randomUUID()}`;
 
-        console.log(`[yt-search] Encontrado: ${video.title}`);
-        console.log(`[yt-search] URL: ${video.url}`);
-
-        // Nome exclusivo para evitar misturar pedidos simultâneos.
-        const fileBaseName = `audio_${randomUUID()}`;
-
-        // As crases e o "s" em %(ext)s são necessários.
         const outputPattern = path.join(
-            tempFolder,
-            `${fileBaseName}.%(ext)s`
+            pastaTemporaria,
+            `${nomeBase}.%(ext)s`
         );
 
-        const ffmpegPath = path.resolve(ffmpegInstaller.path);
+        const ffmpegPath = path.resolve(
+            ffmpegInstaller.path
+        );
 
         const ytDlpBinary = path.resolve(
             process.cwd(),
             'node_modules',
             'yt-dlp-exec',
             'bin',
-            process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp'
+            process.platform === 'win32'
+                ? 'yt-dlp.exe'
+                : 'yt-dlp'
         );
 
         if (!fs.existsSync(ytDlpBinary)) {
@@ -79,107 +198,137 @@ export async function tratarComandoMusica(
             );
         }
 
-        console.log(`[yt-dlp] Executável: ${ytDlpBinary}`);
-        console.log(`[ffmpeg] Executável: ${ffmpegPath}`);
+        etapa = 'pesquisa';
+
+        await message.reply(
+            `🐸🎵 Procurando por "${termoBusca}"...`
+        );
+
+        const resultado = await yts(termoBusca);
+        const video = resultado.videos?.[0];
+
+        if (!video) {
+            await message.reply(
+                '🐸💔 Não encontrei nenhuma música com esse nome.'
+            );
+            return;
+        }
+
+        console.log(
+            `[pesquisa] Música encontrada: ${video.title}`
+        );
+
+        console.log(
+            `[pesquisa] Endereço: ${video.url}`
+        );
 
         etapa = 'download e conversão';
 
         await new Promise<void>((resolve, reject) => {
-            const args = [
+            const argumentos = [
                 video.url,
                 '--extract-audio',
-                '--audio-format', 'mp3',
-                '--audio-quality', '5',
-                '--output', outputPattern,
+                '--audio-format',
+                'mp3',
+                '--audio-quality',
+                '5',
+                '--output',
+                outputPattern,
                 '--no-playlist',
                 '--no-part',
                 '--restrict-filenames',
-                '--ffmpeg-location', ffmpegPath,
-                '--no-warnings',
-                '--no-check-certificates'
+                '--ffmpeg-location',
+                ffmpegPath
             ];
 
-            console.log('[yt-dlp] Iniciando download...');
+            console.log(
+                '[download] Iniciando download e conversão para MP3...'
+            );
 
-            const child = spawn(ytDlpBinary, args, {
-                windowsHide: true
-            });
+            const child = spawn(
+                ytDlpBinary,
+                argumentos,
+                { windowsHide: true }
+            );
 
-            let stderr = '';
+            let detalhes = '';
 
-            child.stdout.on('data', (data) => {
+            child.stdout.on('data', (data: Buffer) => {
                 console.log(
                     `[yt-dlp] ${data.toString().trim()}`
                 );
             });
 
-            child.stderr.on('data', (data) => {
-                const output = data.toString();
-                stderr += output;
+            child.stderr.on('data', (data: Buffer) => {
+                const texto = data.toString();
 
+                detalhes = (detalhes + texto).slice(-16000);
+
+                // Mantém a saída original para diagnóstico.
                 console.error(
-                    `[yt-dlp] ${output.trim()}`
+                    `[yt-dlp — detalhe técnico] ${texto.trim()}`
                 );
             });
 
-            child.on('error', (error) => {
+            child.once('error', (error: Error) => {
                 reject(
                     new Error(
-                        `Não foi possível executar o yt-dlp: ${error.message}`
+                        `Não foi possível executar o programa de download: ${error.message}`
                     )
                 );
             });
 
-            child.on('close', (code) => {
-                if (code === 0) {
-                    resolve();
-                    return;
+            child.once(
+                'close',
+                (code: number | null) => {
+                    if (code === 0) {
+                        resolve();
+                        return;
+                    }
+
+                    reject(
+                        new Error(
+                            `O download terminou com código ${code}.\n${detalhes}`
+                        )
+                    );
                 }
-
-                reject(
-                    new Error(
-                        `yt-dlp encerrou com código ${code}.\n${stderr}`
-                    )
-                );
-            });
+            );
         });
 
         etapa = 'localização do MP3';
 
-        const arquivos = fs.readdirSync(tempFolder);
+        const nomeArquivo = fs
+            .readdirSync(pastaTemporaria)
+            .find(
+                (file) =>
+                    file.startsWith(nomeBase) &&
+                    file.toLowerCase().endsWith('.mp3')
+            );
 
-        const arquivoEncontrado = arquivos.find(
-            (file) =>
-                file.startsWith(fileBaseName) &&
-                file.toLowerCase().endsWith('.mp3')
-        );
-
-        if (!arquivoEncontrado) {
+        if (!nomeArquivo) {
             throw new Error(
-                'O yt-dlp terminou, mas o arquivo MP3 não foi encontrado.'
+                'O download terminou, mas o arquivo MP3 não foi encontrado.'
             );
         }
 
-        arquivoBaixado = path.join(
-            tempFolder,
-            arquivoEncontrado
+        const arquivoBaixado = path.join(
+            pastaTemporaria,
+            nomeArquivo
         );
 
-        console.log(`[arquivo] ${arquivoBaixado}`);
-
-        if (!fs.existsSync(arquivoBaixado)) {
-            throw new Error(
-                'O arquivo de áudio não existe.'
-            );
-        }
-
-        const tamanhoArquivo = fs.statSync(arquivoBaixado).size;
+        const tamanhoArquivo = fs
+            .statSync(arquivoBaixado)
+            .size;
 
         if (tamanhoArquivo <= 0) {
             throw new Error(
                 'O arquivo de áudio foi criado vazio.'
             );
         }
+
+        console.log(
+            `[arquivo] MP3 criado: ${arquivoBaixado}`
+        );
 
         console.log(
             `[arquivo] Tamanho: ${tamanhoArquivo} bytes`
@@ -191,12 +340,19 @@ export async function tratarComandoMusica(
             arquivoBaixado
         );
 
+        etapa = 'compatibilidade do WhatsApp';
+
+        await corrigirEnvioDeMidia(client);
+
         etapa = 'envio ao WhatsApp';
 
-        console.log('[whatsapp] Iniciando envio do MP3:', {
-            mimetype: media.mimetype,
-            bytes: tamanhoArquivo
-        });
+        console.log(
+            '[WhatsApp] Iniciando envio do áudio:',
+            {
+                tipo: media.mimetype,
+                tamanhoEmBytes: tamanhoArquivo
+            }
+        );
 
         await client.sendMessage(
             message.from,
@@ -206,41 +362,56 @@ export async function tratarComandoMusica(
             }
         );
 
-        console.log(`🎵 Música enviada: ${video.title}`);
+        console.log(
+            `[WhatsApp] Áudio enviado: ${video.title}`
+        );
 
-        try {
-            fs.unlinkSync(arquivoBaixado);
-            console.log('[temp] Arquivo removido.');
-        } catch (cleanupError) {
-            console.error(
-                '[temp] Não foi possível remover o arquivo:',
-                cleanupError
-            );
-        }
+    } catch (error: unknown) {
+        const explicacao = traduzirErro(error);
 
-        arquivoBaixado = null;
-    } catch (error) {
         console.error(
-            `❌ ERRO NO COMANDO DE MÚSICA — etapa: ${etapa}`,
+            `❌ Erro no comando de música — etapa: ${etapa}`
+        );
+
+        console.error(
+            `[explicação] ${explicacao}`
+        );
+
+        console.error(
+            '[detalhes técnicos]',
             error
         );
 
-        await message.reply(
-            `🐸💔 Não consegui concluir a música na etapa: ${etapa}. ` +
-            'O detalhe do erro foi registrado no servidor.'
-        );
+        try {
+            await message.reply(
+                `🐸💔 Falha na etapa: ${etapa}.\n\n` +
+                explicacao
+            );
+        } catch (replyError: unknown) {
+            console.error(
+                '[WhatsApp] Não foi possível enviar o aviso de erro:',
+                traduzirErro(replyError)
+            );
+        }
     } finally {
-        if (
-            arquivoBaixado &&
-            fs.existsSync(arquivoBaixado)
-        ) {
+        if (pastaTemporaria) {
             try {
-                fs.unlinkSync(arquivoBaixado);
-                console.log('[temp] Arquivo temporário removido.');
-            } catch (cleanupError) {
+                // Remove somente a pasta exclusiva deste pedido.
+                fs.rmSync(
+                    pastaTemporaria,
+                    {
+                        recursive: true,
+                        force: true
+                    }
+                );
+
+                console.log(
+                    '[limpeza] Arquivos temporários removidos.'
+                );
+            } catch (cleanupError: unknown) {
                 console.error(
-                    '[temp] Erro ao limpar arquivo:',
-                    cleanupError
+                    '[limpeza] Não foi possível remover os arquivos temporários:',
+                    traduzirErro(cleanupError)
                 );
             }
         }
@@ -251,20 +422,11 @@ const musicaCommandImplement: Command = {
     ...musicaCommand,
 
     async execute(message, client, args) {
-        // O primeiro argumento é o comando (!musica, !play etc.).
+        // Remove !musica ou outro comando da busca.
         const query = args
             .slice(1)
             .join(' ')
-            .replace(/^[!#?]+/, '')
             .trim();
-
-        if (!query) {
-            await message.reply(
-                '🐸✨ Por favor, diga o nome da música ou cantor!\n\n' +
-                'Exemplo: !musica Eduardo e Mônica'
-            );
-            return;
-        }
 
         await tratarComandoMusica(
             message,
