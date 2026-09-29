@@ -3,7 +3,6 @@ import makeWASocket, {
     useMultiFileAuthState, 
     DisconnectReason, 
     fetchLatestBaileysVersion,
-    downloadMediaMessage,
     WASocket 
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
@@ -19,6 +18,7 @@ import { isUnwantedMessage } from './utils/isUnwantedMessages';
 import { processCommand } from './utils/processCommand';
 import { clientState } from './services/clientState';
 import { iaFoiChamada } from './utils/iaFoiChamada';
+import { createSapinhaMessage } from './@types/whatsapp';
 
 // Servidor minimalista para UptimeRobot / checagem de saúde da aplicação
 const PORT = process.env.PORT || 3000;
@@ -35,7 +35,7 @@ async function startApp() {
     // Carrega a coleção de comandos da aplicação
     commands = await loadCommands();
 
-    // 1. Gerenciamento de estado e credenciais de sessão (substitui a pasta .wwebjs_auth)
+    // 1. Gerenciamento de estado e credenciais de sessão do Baileys
     const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info');
     const { version } = await fetchLatestBaileysVersion();
 
@@ -84,25 +84,23 @@ async function startApp() {
 
         for (const msg of messages) {
             if (!msg.message || msg.key.fromMe) continue;
-            if (isUnwantedMessage(msg as any)) continue;
+            const message = createSapinhaMessage(sock, msg);
+            if (isUnwantedMessage(message)) continue;
 
-            const groupId = msg.key.remoteJid!;
-            const body = msg.message.conversation || 
-                         msg.message.extendedTextMessage?.text || 
-                         msg.message.imageMessage?.caption || 
-                         msg.message.videoMessage?.caption || '';
+            const groupId = message.from;
+            const body = message.body;
 
             const args = body.trim().split(/ +/);
             const trigger = args.shift()?.toLowerCase();    
             if (trigger && commands.has(trigger)) {
                 console.log(`[Comando] Trigger capturado: ${trigger}`);
                 // Repassa o objeto sock para manter interface compatível no processCommand
-                await processCommand(msg as any, sock as any, commands, trigger);
+                await processCommand(message, sock, commands, trigger);
             }
 
-            if (iaFoiChamada(msg as any)) {
+            if (iaFoiChamada(message)) {
                 try {
-                    await processarMensagem(msg as any, groupId);
+                    await processarMensagem(message);
                 } catch (error) {
                     console.error('Erro ao gerar resposta da IA:', error);
                     await sock.sendMessage(groupId, { 

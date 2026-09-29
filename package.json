@@ -34,5 +34,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "overrides": {
+    "@devlikeapro/whatsapp-rust-bridge": "^1.1.2"
+  }
 }

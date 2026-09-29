@@ -143,5 +143,6 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Autenticação e Sessão do WhatsApp
+baileys_auth_info/
 .wwebjs_auth/
 .wwebjs_cache/

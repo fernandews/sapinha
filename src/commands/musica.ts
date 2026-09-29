@@ -1,4 +1,3 @@
-import { Client, Message, MessageMedia } from 'whatsapp-web.js';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,67 +6,8 @@ import { randomUUID } from 'crypto';
 import { Command } from '../@types/command';
 import { musicaCommand } from '../content/musicaData';
 import yts from 'yt-search';
-
-// Executa o ajuste diretamente no navegador.
-// A string evita o erro "__name is not defined" causado pelo tsx.
-async function corrigirEnvioDeMidia(
-    client: Client
-): Promise<void> {
-    const page = client.pupPage;
-
-    if (!page || page.isClosed()) {
-        throw new Error(
-            'O navegador do WhatsApp não está disponível.'
-        );
-    }
-
-    await page.evaluate(`
-        (() => {
-            const api = window.WWebJS;
-
-            if (
-                !api ||
-                typeof api.processMediaData !== 'function'
-            ) {
-                throw new Error(
-                    'A sessão do WhatsApp ainda não está pronta.'
-                );
-            }
-
-            const original = api.processMediaData;
-
-            if (original.__sapinhaMediaIdFix) {
-                return;
-            }
-
-            const corrigida = async function (...args) {
-                const media = await original.apply(this, args);
-
-                const dados = {
-                    ...media,
-                    ...(typeof media.toJSON === 'function'
-                        ? media.toJSON()
-                        : {})
-                };
-
-                // Evita que o ID interno da mídia
-                // substitua o ID da mensagem.
-                delete dados.__x_id;
-                delete dados.toJSON;
-
-                return dados;
-            };
-
-            Object.defineProperty(
-                corrigida,
-                '__sapinhaMediaIdFix',
-                { value: true }
-            );
-
-            api.processMediaData = corrigida;
-        })()
-    `);
-}
+import { WASocket } from '@whiskeysockets/baileys';
+import { SapinhaMessage } from '../@types/whatsapp';
 
 function traduzirErro(error: unknown): string {
     const texto = error instanceof Error
@@ -90,20 +30,12 @@ function traduzirErro(error: unknown): string {
         return 'O vídeo possui restrição de idade.';
     }
 
-    if (/__name is not defined/i.test(texto)) {
-        return 'O navegador recebeu uma função auxiliar que não está disponível.';
-    }
-
     if (/data passed to getter must include an id/i.test(texto)) {
         return 'O WhatsApp encontrou um identificador inválido ao preparar a mensagem de áudio.';
     }
 
     if (/target closed|session closed|connection closed/i.test(texto)) {
-        return 'A conexão com o navegador do WhatsApp foi encerrada.';
-    }
-
-    if (/execution context was destroyed/i.test(texto)) {
-        return 'A página do WhatsApp foi recarregada durante a operação.';
+        return 'A conexão com o WhatsApp foi encerrada.';
     }
 
     if (/timed out|timeout|ETIMEDOUT/i.test(texto)) {
@@ -135,9 +67,9 @@ function traduzirErro(error: unknown): string {
 }
 
 export async function tratarComandoMusica(
-    message: Message,
+    message: SapinhaMessage,
     query: string,
-    client: Client
+    client: WASocket
 ): Promise<void> {
     const termoBusca = query.trim();
 
@@ -336,29 +268,22 @@ export async function tratarComandoMusica(
 
         etapa = 'preparação da mídia';
 
-        const media = MessageMedia.fromFilePath(
-            arquivoBaixado
-        );
-
-        etapa = 'compatibilidade do WhatsApp';
-
-        await corrigirEnvioDeMidia(client);
-
         etapa = 'envio ao WhatsApp';
 
         console.log(
             '[WhatsApp] Iniciando envio do áudio:',
             {
-                tipo: media.mimetype,
+                tipo: 'audio/mpeg',
                 tamanhoEmBytes: tamanhoArquivo
             }
         );
 
         await client.sendMessage(
             message.from,
-            media,
             {
-                sendAudioAsVoice: false
+                audio: fs.readFileSync(arquivoBaixado),
+                mimetype: 'audio/mpeg',
+                ptt: false,
             }
         );
 

@@ -1,9 +1,15 @@
 import { clientState } from "../services/clientState";
+import { getMessageContent, SapinhaMessage } from '../@types/whatsapp';
 
-
-export const iaFoiChamada = (msg: any) => {
-    const rawData = (msg as any)._data;
-    const mentionedJids: string[] = rawData?.mentionedJidList || msg.mentionedIds || [];
+export const iaFoiChamada = (msg: SapinhaMessage) => {
+    const content = getMessageContent(msg.original);
+    const contextInfo = content?.extendedTextMessage?.contextInfo ??
+        content?.imageMessage?.contextInfo ??
+        content?.videoMessage?.contextInfo ??
+        content?.audioMessage?.contextInfo ??
+        content?.documentMessage?.contextInfo ??
+        content?.stickerMessage?.contextInfo;
+    const mentionedJids: string[] = contextInfo?.mentionedJid ?? msg.mentionedIds;
 
     const foiMencionada = mentionedJids.some((jid) => {
         if (!jid) return false;
@@ -19,14 +25,13 @@ export const iaFoiChamada = (msg: any) => {
 
     // Checa se responderam a uma mensagem da Sapinha
     let foiRespondida = false;
-    if (msg.hasQuotedMsg && rawData?.quotedMsg) {
-        const q = rawData.quotedMsg;
-        const participant = rawData.quotedParticipant || q.author || q.from;
+    if (msg.hasQuotedMsg && contextInfo?.quotedMessage) {
+        const participant = contextInfo.participant;
 
         // A mensagem citada pertence à Sapinha se:
         foiRespondida = 
             // a) O indicador nativo de autoria do bot for verdadeiro
-            Boolean(q.fromMe) || 
+            Boolean(participant && clientState.botNumber() && participant.includes(clientState.botNumber())) ||
             // b) O autor da mensagem citada for o número do bot
             Boolean(clientState.botNumber() && participant?.includes(clientState.botNumber())) ||
             // c) O autor da mensagem citada for o LID do bot

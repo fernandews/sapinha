@@ -10,7 +10,7 @@ const sorteioCommandImplement: Command = {
         const participants = clientState.mainChat()?.participants || [];
         const selectedParticipant = participants[Math.floor(Math.random() * participants.length)];
 
-        await msg.reply('@' + selectedParticipant.id.user) ;
+        await msg.reply('@' + (selectedParticipant.phoneNumber ?? selectedParticipant.id).split('@')[0]) ;
     }
 };
 

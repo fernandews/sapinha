@@ -5,7 +5,6 @@ const banCommand: Command = {
     ...removerCommand,
 
     async execute(msg, client, args) {
-        const chat = await msg.getChat();
         let usuarioParaBanir: string | undefined;
 
         // 1. Verifica se o comando foi enviado respondendo a uma mensagem
@@ -28,9 +27,7 @@ const banCommand: Command = {
         }
 
         try {
-            // Instância do chat do grupo no whatsapp-web.js
-            const groupChat = chat as any;
-            await groupChat.removeParticipants([usuarioParaBanir]);
+            await client.groupParticipantsUpdate(msg.from, [usuarioParaBanir], 'remove');
             await msg.reply(removerSucesso);
         } catch (error) {
             console.error('Erro ao remover usuário:', error);

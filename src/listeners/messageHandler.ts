@@ -1,4 +1,5 @@
-import { Message, MessageMedia } from 'whatsapp-web.js';
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import { SapinhaMessage } from '../@types/whatsapp';
 import { stateIA } from '../services/aiState';
 import { gerarRespostaSapinha, MidiaPart } from '../services/gemini';
 import { adicionarMensagemAoHistorico, obterHistoricoGrupo } from '../services/history';
@@ -6,20 +7,20 @@ import { adicionarMensagemAoHistorico, obterHistoricoGrupo } from '../services/h
 const TIPOS_MIDIA_SUPORTADOS = ['ptt', 'audio', 'image', 'sticker'];
 
 /**
- * Função utilitária para converter mídias do whatsapp-web.js no formato MidiaPart do Gemini
+ * Função utilitária para converter mídias do Baileys no formato MidiaPart do Gemini
  */
-async function extrairMidia(message: Message): Promise<MidiaPart | null> {
+async function extrairMidia(message: SapinhaMessage): Promise<MidiaPart | null> {
     if (!message.hasMedia || !TIPOS_MIDIA_SUPORTADOS.includes(message.type)) {
         return null;
     }
 
     try {
-        const media: MessageMedia = await message.downloadMedia();
-        if (media && media.data) {
+        const media = await downloadMediaMessage(message.original, 'buffer', {});
+        if (media) {
             return {
                 inlineData: {
-                    data: media.data,
-                    mimeType: media.mimetype
+                    data: media.toString('base64'),
+                    mimeType: message.mimeType ?? 'application/octet-stream'
                 }
             };
         }
@@ -46,7 +47,8 @@ async function salvarEResponder(texto: string, groupId: string, midias: MidiaPar
     return resposta;
 }
 
-export async function processarMensagem(message: Message, groupId: string) {
+export async function processarMensagem(message: SapinhaMessage) {
+    const groupId = message.from;
     // 1. Trava: Se a IA estiver desativada, ignora o processamento
     if (!stateIA.isAtiva()) {
         await message.reply(`🐸 A Sapinha está dormindo no momento. Porque você não conversa com uma pessoa mesmo? ✨💖`);
@@ -59,8 +61,8 @@ export async function processarMensagem(message: Message, groupId: string) {
 
         // 2. Processa a Mensagem Citada (Quoted Message), se houver
         if (message.hasQuotedMsg) {
-            // Nota: whatsapp-web.js usa getQuotedMessage()
-            const quotedMessage: Message = await message.getQuotedMessage();
+            const quotedMessage: SapinhaMessage | null = await message.getQuotedMessage();
+            if (!quotedMessage) return;
             
             const midiaQuoted = await extrairMidia(quotedMessage);
             if (midiaQuoted) {

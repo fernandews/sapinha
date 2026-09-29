@@ -1,7 +1,7 @@
 import { SAPINHA_SYSTEM_PROMPT } from '../content/systemPrompts';
 import { ChatMessage } from '../@types/chatMessage';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Message, MessageMedia } from 'whatsapp-web.js';
+import { SapinhaMessage } from '../@types/whatsapp';
 
 // 1. Inicializa o SDK do Gemini
 const apiKey = process.env.GEMINI_API_KEY;
@@ -16,7 +16,7 @@ const model = genAI.getGenerativeModel({
     systemInstruction: SAPINHA_SYSTEM_PROMPT,
 });
 
-function obterPromptPadrao(msg: Message): string {
+function obterPromptPadrao(msg: SapinhaMessage): string {
     if (msg.body && msg.body.trim().length > 0) {
         return msg.body;
     }

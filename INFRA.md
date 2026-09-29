@@ -2,7 +2,7 @@
 
 ## 📌 Visão Geral
 
-O bot **Sapinha** é uma aplicação Node.js / TypeScript integrada com `whatsapp-web.js` (Headless Chromium) e APIs externas de LLM. Devido ao alto consumo de memória RAM decorrente da execução do Chromium e da sincronização contínua via WebSocket em grupos movimentados do WhatsApp, a aplicação foi colocada na Google Cloud Platform (GCP).
+O bot **Sapinha** é uma aplicação Node.js / TypeScript integrada ao WhatsApp pela biblioteca Baileys e a APIs externas de LLM. A aplicação está hospedada na Google Cloud Platform (GCP).
 
 ---
 
@@ -34,7 +34,7 @@ npm install
 # 4. Recompile o código TypeScript
 npm run build
 
-# 5. Reinicie o processo no PM2 (sem perda de sessão do WhatsApp)
+# 5. Reinicie o processo no PM2 (a sessão fica em baileys_auth_info/)
 pm2 restart sapinha-bot
 ```
 

@@ -1,4 +1,4 @@
-import { MessageMedia } from 'whatsapp-web.js';
+import fs from 'fs';
 import { Command } from '../@types/command';
 import { brincadeirasCommand, brincadeirasMenu, brincadeirasMenuPS, brincadeirasOptions } from '../content/brincadeirasData';
 
@@ -20,8 +20,8 @@ const brincadeirasCommandImplement: Command = {
         const brincadeira = brincadeirasOptions[opcao as keyof typeof brincadeirasOptions];
 
         if (brincadeira) {
-            const media = MessageMedia.fromFilePath(brincadeira.imagem);
-            await client.sendMessage(msg.from, media);
+            const media = fs.readFileSync(brincadeira.imagem);
+            await client.sendMessage(msg.from, { image: media });
             return;
         }
 

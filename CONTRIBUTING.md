@@ -68,9 +68,9 @@ Contém o systemPrompt que define quem é a sapinha. Para ajustar como ela se co
 ## 🧱 Boas Práticas
 Separação de Conteúdo: Mantenha textos longos e dados na pasta `src/content/` e deixe a lógica executável em `src/commands/`.
 
-**Apenas Grupos:** O bot é configurado para funcionar exclusivamente dentro de grupos. *Não remova a trava if (!chat.isGroup) no index.ts*.
+**Apenas Grupos:** O bot é configurado para funcionar exclusivamente dentro de grupos. *Não remova a validação de grupo em `src/utils/isUnwantedMessages.ts`.*
 
-**Segurança:** Nunca comite arquivos `.env`, chaves de API ou a pasta de sessão `.wwebjs_auth/`.
+**Segurança:** Nunca comite arquivos `.env`, chaves de API ou a pasta de sessão `baileys_auth_info/`.
 
 ## 🚀 Deploy
 Para saber mais sobre o deploy e a infraestrutura do projeto, leia o INFRA.md

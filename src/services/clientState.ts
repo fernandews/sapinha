@@ -1,12 +1,12 @@
-import { GroupChat } from "whatsapp-web.js";
+import { GroupMetadata } from '@whiskeysockets/baileys';
 
 let botLid: string = '';
 let botNumber: string = '';
-let mainChat: GroupChat | null = null;
+let mainChat: GroupMetadata | null = null;
 
 export const clientState = {
     mainChat: () => mainChat,
-    setMainChat: (chat: GroupChat | null) => { mainChat = chat; },
+    setMainChat: (chat: GroupMetadata | null) => { mainChat = chat; },
     botLid: () => botLid,
     setBotLid: (lid: string) => { botLid = lid; },
     botNumber: () => botNumber,
