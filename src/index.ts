@@ -25,8 +25,6 @@ const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('🐸 Sapinha está viva!');
-}).listen(PORT, () => {
-    console.log(`🌐 Servidor HTTP rodando na porta ${PORT}`);
 });
 
 let commands: Map<string, Command> = new Map();

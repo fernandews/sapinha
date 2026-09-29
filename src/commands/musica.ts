@@ -132,10 +132,6 @@ export async function tratarComandoMusica(
 
         etapa = 'pesquisa';
 
-        await message.reply(
-            `🐸🎵 Procurando por "${termoBusca}"...`
-        );
-
         const resultado = await yts(termoBusca);
         const video = resultado.videos?.[0];
 
