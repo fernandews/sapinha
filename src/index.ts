@@ -1,6 +1,17 @@
 import 'dotenv/config';
-import { Client, GroupChat, LocalAuth, Message, MessageMedia } from 'whatsapp-web.js';
+import makeWASocket, { 
+    useMultiFileAuthState, 
+    DisconnectReason, 
+    fetchLatestBaileysVersion,
+    downloadMediaMessage,
+    WASocket 
+} from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+
 import { Command } from './@types/command';
 import { processarMensagem } from './listeners/messageHandler';
 import { loadCommands } from './utils/loadCommands';
@@ -9,96 +20,130 @@ import { processCommand } from './utils/processCommand';
 import { clientState } from './services/clientState';
 import { iaFoiChamada } from './utils/iaFoiChamada';
 
-import http from 'http';
-import path from 'path';
-
-// Servidor minimalista para a Render/UptimeRobot checarem que o bot está vivo
+// Servidor minimalista para UptimeRobot / checagem de saúde da aplicação
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('🐸 Sapinha está viva!');
 }).listen(PORT, () => {
     console.log(`🌐 Servidor HTTP rodando na porta ${PORT}`);
 });
 
-const isWindows = process.platform === 'win32';
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        headless: true,
-        ...(isWindows ? { channel: 'chrome' } : {}),
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage', // Impede estouro de memória compartilhada usando /tmp
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--disable-gpu',
-            '--disable-extensions',
-            '--mute-audio',            // Silencia o áudio no Chromium em background sem afetar a leitura do buffer
-            '--disable-background-networking',
-            '--disable-background-timer-throttling'
-        ]
-    }
-});
-
 let commands: Map<string, Command> = new Map();
-// Eventos do WhatsApp Client
-client.on('qr', (qr: string) => {
-    console.log('📱 Escaneie o QR Code abaixo com o WhatsApp Business:');
-    qrcode.generate(qr, { small: true });
-});
 
-client.on('ready', async () => {
-    console.log('🐸 Sapinha está pronta!');
+async function startApp() {
+    // Carrega a coleção de comandos da aplicação
+    commands = await loadCommands();
 
-    const chats = await client.getChats();
-    clientState.setMainChat(chats.find((chat) => chat.isGroup && chat.name.includes('NUMASAPA')) as GroupChat | null);
-    clientState.setBotNumber(client.info?.wid?.user || "");
-});
+    // 1. Gerenciamento de estado e credenciais de sessão (substitui a pasta .wwebjs_auth)
+    const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info');
+    const { version } = await fetchLatestBaileysVersion();
 
-client.on('message', async (msg: Message) => {
-    if (isUnwantedMessage(msg)) return;
-    const groupId = msg.from;
+    // 2. Inicialização do Socket do WhatsApp em Node.js puro (sem Chromium/Puppeteer)
+    const sock: WASocket = makeWASocket({
+        version,
+        auth: state,
+        printQRInTerminal: false,
+        browser: ['Sapinha Bot', 'Chrome', '1.0.0']
+    });
 
-    const args = msg.body?.split(/ +/);
-    const trigger = args?.shift()?.toLowerCase();
-    
-    if (trigger && commands.has(trigger)) {
-        console.log('mensagem com trigger');
-        await processCommand(msg, client, commands, trigger);
-    }
+    // Salva atualizações de chaves/sessão
+    sock.ev.on('creds.update', saveCreds);
 
-    if (iaFoiChamada(msg)) {
-        try {
-            await processarMensagem(msg, groupId);
-        } catch (error) {
-            console.error('Erro ao gerar resposta da IA:', error);
-            await msg.reply('🐸💔 A sapinha deu uma moscada aqui! Tenta me chamar de novo? ✨');
+    // 3. Gerenciamento de Conexão e Exibição de QR Code
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr) {
+            console.log('📱 Escaneie o QR Code abaixo com o WhatsApp:');
+            qrcode.generate(qr, { small: true });
         }
-    }
-});
 
-client.on('group_join', async (notification) => {
-    try {
-        const media = MessageMedia.fromFilePath('./src/assets/bem-vindas.jpeg');
-        await client.sendMessage(notification.chatId, media);
+        if (connection === 'close') {
+            const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            console.log(`🔌 Conexão fechada. Motivo: ${statusCode}. Reconectando...`, shouldReconnect);
+            
+            if (shouldReconnect) {
+                startApp();
+            } else {
+                console.log('❌ Sessão encerrada/desconectada no celular. Apague a pasta "baileys_auth_info" e reinicie para ler o QR Code novamente.');
+            }
+        } else if (connection === 'open') {
+            console.log('🐸 Sapinha está pronta e conectada via Baileys (sem navegador)! ✨');
+            
+            // Define o número do bot no clientState
+            const botNumber = sock.user?.id ? sock.user.id.split(':')[0] : '';
+            clientState.setBotNumber(botNumber);
+        }
+    });
+
+    // 4. Escuta e Processamento de Mensagens Recebidas
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        if (type !== 'notify') return;
+
+        for (const msg of messages) {
+            if (!msg.message || msg.key.fromMe) continue;
+            if (isUnwantedMessage(msg as any)) continue;
+
+            const groupId = msg.key.remoteJid!;
+            const body = msg.message.conversation || 
+                         msg.message.extendedTextMessage?.text || 
+                         msg.message.imageMessage?.caption || 
+                         msg.message.videoMessage?.caption || '';
+
+            const args = body.trim().split(/ +/);
+            const trigger = args.shift()?.toLowerCase();    
+            if (trigger && commands.has(trigger)) {
+                console.log(`[Comando] Trigger capturado: ${trigger}`);
+                // Repassa o objeto sock para manter interface compatível no processCommand
+                await processCommand(msg as any, sock as any, commands, trigger);
+            }
+
+            if (iaFoiChamada(msg as any)) {
+                try {
+                    await processarMensagem(msg as any, groupId);
+                } catch (error) {
+                    console.error('Erro ao gerar resposta da IA:', error);
+                    await sock.sendMessage(groupId, { 
+                        text: '🐸💔 A sapinha deu uma moscada aqui! Tenta me chamar de novo? ✨' 
+                    }, { quoted: msg });
+                }
+            }
+        }
+    });
+
+    // 5. Evento de Boas-Vindas quando alguém entra em um grupo
+    sock.ev.on('group-participants.update', async (notification) => {
+        const { id: chatId, participants, action } = notification;
+
+        if (action === 'add') {
+            try {
+                const imagePath = path.resolve('./src/assets/bem-vindas.jpeg');
                 
-    } catch (error) {
-        console.error('❌ Erro ao enviar mensagem de boas-vindas:', error);
-    }
-});
+                if (fs.existsSync(imagePath)) {
+                    const imageBuffer = fs.readFileSync(imagePath);
+                    
+                    for (const participant of participants) {
+                        const { id: participantId } = participant;
+                        await sock.sendMessage(chatId, {
+                            image: imageBuffer,
+                            caption: `🐸✨ Seja bem-vinda ao grupo, @${participantId.split('@')[0]}!`,
+                            mentions: [participantId]
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erro ao enviar mensagem de boas-vindas:', error);
+            }
+        }
+    });
+}
 
 // Inicialização da aplicação
-const startApp = async () => {
-    commands = await loadCommands();
-    await client.initialize();
-};
-
 startApp().catch((err) => console.error('Erro na inicialização do bot:', err));
 
-// Tratadores de Exceção Globais (Evita queda do processo Node)
+// Tratadores Globais de Exceção (Garante resiliência e previne queda do processo Node)
 process.on('unhandledRejection', (reason) => {
     console.error('Promessa não tratada capturada:', reason);
 });
