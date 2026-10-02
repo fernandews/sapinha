@@ -8,8 +8,6 @@ export const processCommand = async (msg: SapinhaMessage, client: WASocket, comm
         const command = commands.get(trigger);
 
         if (command) {
-            clientState.setMainChat(await client.groupMetadata(msg.from));
-
             // Checagem de Administradora (adminOnly)
             if (command.adminOnly) {
                 const participant = msg.author

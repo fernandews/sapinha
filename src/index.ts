@@ -19,6 +19,7 @@ import { processCommand } from './utils/processCommand';
 import { clientState } from './services/clientState';
 import { iaFoiChamada } from './utils/iaFoiChamada';
 import { createSapinhaMessage } from './@types/whatsapp';
+import { startDailyImageSchedule, stopDailyImageSchedule } from './services/dailyImage';
 
 // Servidor minimalista para UptimeRobot / checagem de saúde da aplicação
 const PORT = process.env.PORT || 3000;
@@ -49,7 +50,7 @@ async function startApp() {
     sock.ev.on('creds.update', saveCreds);
 
     // 3. Gerenciamento de Conexão e Exibição de QR Code
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
@@ -58,6 +59,7 @@ async function startApp() {
         }
 
         if (connection === 'close') {
+            stopDailyImageSchedule(sock);
             const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
             const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
             console.log(`🔌 Conexão fechada. Motivo: ${statusCode}. Reconectando...`, shouldReconnect);
@@ -73,6 +75,27 @@ async function startApp() {
             // Define o número do bot no clientState
             const botNumber = sock.user?.id ? sock.user.id.split(':')[0] : '';
             clientState.setBotNumber(botNumber);
+
+            try {
+                const groups = await sock.groupFetchAllParticipating();
+                const mainChat = Object.values(groups).find((group) => group.subject === 'teste');
+                clientState.setMainChat(mainChat ?? null);
+                if (mainChat) {
+                    console.log(`[WhatsApp] Grupo principal definido: "${mainChat.subject}" (${mainChat.id}).`);
+                } else {
+                    const availableGroups = Object.values(groups)
+                        .map(({ subject, id }) => `"${subject}" (${id})`)
+                        .join(', ');
+                    console.error(
+                        `[WhatsApp] Grupo "teste" não encontrado. Grupos disponíveis: ${availableGroups || 'nenhum'}.`
+                    );
+                }
+            } catch (error) {
+                clientState.setMainChat(null);
+                console.error('[WhatsApp] Erro ao listar grupos para localizar "teste":', error);
+            }
+
+            startDailyImageSchedule(sock);
         }
     });
 

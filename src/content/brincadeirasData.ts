@@ -31,6 +31,10 @@ export const brincadeirasOptions: Record<string, OptionImage> = {
         titulo: 'Diamante da Temporada',
         imagem: './src/assets/brincadeiras/diamante.jpeg',
     },
+    'pv': {
+        titulo: 'PV Liberado',
+        imagem: './src/assets/brincadeiras/pv.jpeg',
+    }
 };
 
 export const brincadeirasMenuPS = '\n💡 *Dica:* Digite o nome da brincadeira (ex: !brincadeira namoro)';

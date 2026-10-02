@@ -13,7 +13,7 @@ const iaCommandImplement: Command = {
     ...iaCommand,
 
     async execute(msg, client, args) {
-        if (args.length === 0) {
+        if (args.length === 1) {
             let menu = iaMenu;
             for (const [chave, item] of Object.entries(iaOptions)) {
                 menu += `*!sapinha ${chave}* - ${item.titulo}\n`;
@@ -21,8 +21,10 @@ const iaCommandImplement: Command = {
             await msg.reply(menu);
             return;
         }
+        console.log('ARGS AQUI:', args);
+        
 
-        const opcao = args[0];
+        const opcao = args[1];
         const iaOption = iaOptions[opcao as keyof typeof iaOptions];
         // Comandos de Controle da IA
 

@@ -36,6 +36,17 @@ Crie um arquivo chamado .env na raiz do projeto contendo as suas chaves de API:
 GEMINI_API_KEY=sua_chave_aqui
 ```
 
+## Envio diário de imagem
+Coloque as imagens em `src/assets/diarias`. O bot envia a imagem do dia às 12h e `22h.jpeg` às 22h10, no horário de São Paulo, para o grupo definido em `clientState.mainChat`:
+
+- Segunda: `segunda.jpeg`
+- Terça: `terca.jpeg`
+- Quarta: `quarta.jpeg`
+- Quinta: `quinta.jpeg`
+- Sexta: `sexta.jpeg`
+- Sábado: `sabado.jpeg`
+- Domingo: `domingo.jpeg`
+
 ## ⚙️ Scripts Disponíveis
 **npm run dev:** Inicia o bot em modo de desenvolvimento local usando tsx com auto-reload.
 
