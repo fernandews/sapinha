@@ -78,7 +78,7 @@ async function startApp() {
 
             try {
                 const groups = await sock.groupFetchAllParticipating();
-                const mainChat = Object.values(groups).find((group) => group.subject === 'teste');
+                const mainChat = Object.values(groups).find((group) => group.subject === 'NUMASAPA');
                 clientState.setMainChat(mainChat ?? null);
                 if (mainChat) {
                     console.log(`[WhatsApp] Grupo principal definido: "${mainChat.subject}" (${mainChat.id}).`);
@@ -87,12 +87,12 @@ async function startApp() {
                         .map(({ subject, id }) => `"${subject}" (${id})`)
                         .join(', ');
                     console.error(
-                        `[WhatsApp] Grupo "teste" não encontrado. Grupos disponíveis: ${availableGroups || 'nenhum'}.`
+                        `[WhatsApp] Grupo "NUMASAPA" não encontrado. Grupos disponíveis: ${availableGroups || 'nenhum'}.`
                     );
                 }
             } catch (error) {
                 clientState.setMainChat(null);
-                console.error('[WhatsApp] Erro ao listar grupos para localizar "teste":', error);
+                console.error('[WhatsApp] Erro ao listar grupos para localizar "NUMASAPA":', error);
             }
 
             startDailyImageSchedule(sock);

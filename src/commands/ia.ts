@@ -21,8 +21,6 @@ const iaCommandImplement: Command = {
             await msg.reply(menu);
             return;
         }
-        console.log('ARGS AQUI:', args);
-        
 
         const opcao = args[1];
         const iaOption = iaOptions[opcao as keyof typeof iaOptions];

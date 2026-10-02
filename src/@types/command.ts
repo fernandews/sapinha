@@ -1,5 +1,5 @@
-import { WASocket, WAMessage } from '@whiskeysockets/baileys';
-import { SapinhaMessage } from './whatsapp';
+import type { WASocket, WAMessage } from '@whiskeysockets/baileys';
+import type { SapinhaMessage } from './whatsapp';
 
 export interface Command {
     name: string;

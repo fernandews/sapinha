@@ -10,12 +10,13 @@ const sorteioCommandImplement: Command = {
         const participants = clientState.mainChat()?.participants || [];
         const selectedParticipant = participants[Math.floor(Math.random() * participants.length)];
         const participantId = selectedParticipant.id;
-        const participantNumber = (selectedParticipant.phoneNumber ?? participantId).split('@')[0];
+        const chatId = clientState.mainChat()?.id;
 
-        await sock.sendMessage(chatId, {
-            caption: `🐸✨ Seja bem-vinda ao grupo, @${participantId.split('@')[0]}!`,
+        await client.sendMessage(chatId || "", {
+            text: `@${participantId.split('@')[0]}`,
             mentions: [participantId]
-        });
+        }, 
+        {quoted: msg.original});
     }
 };
 
