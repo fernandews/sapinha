@@ -78,7 +78,7 @@ async function startApp() {
 
             try {
                 const groups = await sock.groupFetchAllParticipating();
-                const mainChat = Object.values(groups).find((group) => group.subject === 'NUMASAPA');
+                const mainChat = Object.values(groups).find((group) => group.subject === 'NUMASAPA 🌈🐸');
                 clientState.setMainChat(mainChat ?? null);
                 if (mainChat) {
                     console.log(`[WhatsApp] Grupo principal definido: "${mainChat.subject}" (${mainChat.id}).`);
